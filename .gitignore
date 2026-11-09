@@ -1,0 +1,36 @@
+# User-generated PC inventory exports (sensitive; never commit)
+AI_PC_Knowledge_Pack_*.zip
+AI_PC_Knowledge_Pack_*/
+*_Knowledge_Pack_*.zip
+scan_report.json
+warnings.csv
+system_profile.json
+installed_software.csv
+files.csv
+folders.csv
+volumes.csv
+
+# Runtime / Python
+__pycache__/
+*.py[cod]
+*.log
+*.tmp
+*.temp
+*.bak
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+credentials.json
+secrets.json
+*.pem
+*.pfx
+*.p12
+*.key
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
