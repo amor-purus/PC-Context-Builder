@@ -1,0 +1,38 @@
+AI PC Intelligence v1.0.7 - Verification status
+Date: 2026-11-09
+
+Build-environment verification (Linux / Python 3.13):
+- Python syntax compilation: PASS
+- Built-in --self-test: PASS
+- Source-level regression checks: PASS
+- No third-party Python dependencies
+
+Target-device verification (user's Windows 11 Pro / CPython 3.14.10 x64):
+- Application startup and main window: PASS
+- Drive-selection window operation: PASS
+- Review window operation and taskbar/window restoration: PASS
+- End-to-end scan and ZIP creation: PASS
+- ZIP integrity audit (7 entries): PASS
+- Hardware profile acquisition through the PowerShell/CIM path: PASS; no Python fallback warning was present in the produced report
+- C: drive inventory: PASS
+
+Observed limitations in the audited real-device run:
+- Scan report status: partial_errors
+- Files scanned: 122,720
+- Folders scanned: 23,892
+- Skipped: 148
+- Access errors: 3 PermissionError records on C:. The exported warning rows did not include the exact paths, so their locations cannot be identified from that ZIP.
+- The user left software, folder, and file metadata selection disabled. Their absence from the ZIP is expected privacy behavior, not a collection failure.
+- The generated ZIP contained only the selected PC profile, storage summary, exclusion summary, warnings, scan report, manifest, and AI-facing README. It did not contain file contents.
+
+Privacy boundary retained:
+- Local-only operation; no network upload.
+- Read-only inventory; no modification of source files, registry, or Windows settings.
+- File contents are not collected.
+- Sensitive paths and machine-specific scan exports are excluded from this repository.
+
+Interpretation:
+- v1.0.7 has been exercised successfully on the target Windows 11 PC, including UI operation, a full scan, and ZIP generation.
+- The run was not error-free: three access-denied records remain and are reported as partial_errors. The exact paths were not included in the exported warnings.
+- The hardware/CIM acquisition path worked on the target device without the Python fallback warning.
+- Optional software/folder/file metadata features were not validated in this run because the user did not select them.

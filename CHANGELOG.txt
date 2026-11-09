@@ -1,0 +1,29 @@
+AI PC Intelligence v1.0.7
+- Removed transient() and grab_set() from DriveSelection and ReviewWindow to avoid Windows Tk parent/child activation deadlocks and taskbar restore failures.
+- Made DriveSelection and ReviewWindow independent modeless native windows. The main scan button is disabled while a drive selector or review window is open, preventing duplicate scans without an application grab.
+- Added a one-time lift() and focus_force() request after App, DriveSelection, and ReviewWindow initialization. Focus is not repeatedly stolen during normal operation.
+- Added explicit parent= to every messagebox call so confirmation, warning, and error dialogs stay logically attached to the owning application/dialog window.
+- Added source-level regression checks for forbidden transient/grab calls, parent-bound messageboxes, focus activation, and duplicate-scan prevention.
+- Preserved the v1.0.6 PowerShell pipe-drain, RAM fallback, motherboard inventory, protected-directory handling, and ADB-key sensitive-name detection.
+
+Verification:
+- Python syntax compilation: PASS.
+- Built-in self-test: PASS.
+- AST check: no transient/grab_set/grab_release calls anywhere in main.py.
+- AST check: every messagebox ask/show call specifies parent=.
+- Source checks: App, DriveSelection, and ReviewWindow have one-time lift/focus activation; drive/review windows disable duplicate scan starts.
+- Windows 11 target-device GUI/taskbar/focus behavior: PASS (user confirmed stable main, drive-selection, and review windows).
+
+AI PC Intelligence v1.0.6
+- Fixed PowerShell subprocess pipe deadlock with communicate(timeout=...) draining stdout/stderr.
+- Added GlobalMemoryStatusEx RAM fallback and Win32_BaseBoard information.
+- Treated PermissionError under designated protected system directories as expected skip.
+- Added adbkey / adbkey.pub sensitive-name detection.
+
+AI PC Intelligence v1.0.5
+- Added taskbar restoration workaround for transient grabbed review windows.
+
+Previous fixes retained:
+- v1.0.4 fixed footer layout.
+- v1.0.3 file-table geometry-manager parent fix.
+- v1.0.2 isolated CIM query timeouts and added Python fallback.

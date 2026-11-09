@@ -1,0 +1,25 @@
+name: Windows self-test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  self-test:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up CPython 3.14 x64
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          architecture: 'x64'
+
+      - name: Compile source
+        run: python -m py_compile main.py
+
+      - name: Run synthetic self-test
+        run: python main.py --self-test
