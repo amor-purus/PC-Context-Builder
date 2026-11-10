@@ -607,11 +607,11 @@ def detect_system_language() -> str:
     except Exception:
         value = ""
     value = value.replace("-", "_").lower()
-    if value.startswith("zh"):
+    if value.startswith("zh") or "chinese" in value:
         return "zh"
-    if value.startswith("ja"):
+    if value.startswith("ja") or "japanese" in value:
         return "ja"
-    if value.startswith("ko"):
+    if value.startswith("ko") or "korean" in value:
         return "ko"
     return "en"
 
@@ -743,11 +743,11 @@ def _dynamic_translation(text: str, language: str) -> str:
         ),
 
         (
-            r"除外理由の集計を梱包する（検出 (?P<count>[\\d,]+) 件）",
+            r"除外理由の集計を梱包する（検出 (?P<count>[\d,]+) 件）",
             {"zh": "打包排除原因统计（检测到 {count} 项）", "ja": "除外理由の集計を梱包する（検出 {count} 件）", "ko": "제외 사유 집계 패키징(감지 {count}개)", "en": "Include exclusion-reason summary ({count} detected)"},
         ),
         (
-            r"スキャン警告を梱包する（(?P<count>[\\d,]+) 件）",
+            r"スキャン警告を梱包する（(?P<count>[\d,]+) 件）",
             {"zh": "打包扫描警告（{count} 项）", "ja": "スキャン警告を梱包する（{count} 件）", "ko": "스캔 경고 패키징({count}개)", "en": "Include scan warnings ({count} items)"},
         ),
         (
@@ -756,47 +756,47 @@ def _dynamic_translation(text: str, language: str) -> str:
         ),
 
         (
-            r"- Schema version: (?P<version>.*)",
+            r"Schema version: (?P<version>.*)",
             {"zh": "架构版本：{version}", "ja": "スキーマバージョン：{version}", "ko": "스키마 버전: {version}", "en": "Schema version: {version}"},
         ),
         (
-            r"- Scan time: (?P<time>.*)",
+            r"Scan time: (?P<time>.*)",
             {"zh": "扫描时间：{time}", "ja": "スキャン時刻：{time}", "ko": "스캔 시간: {time}", "en": "Scan time: {time}"},
         ),
         (
-            r"- OS: (?P<value>.*)",
+            r"OS: (?P<value>.*)",
             {"zh": "操作系统：{value}", "ja": "OS：{value}", "ko": "운영 체제: {value}", "en": "OS: {value}"},
         ),
         (
-            r"- Architecture: (?P<value>.*)",
+            r"Architecture: (?P<value>.*)",
             {"zh": "架构：{value}", "ja": "アーキテクチャ：{value}", "ko": "아키텍처: {value}", "en": "Architecture: {value}"},
         ),
         (
-            r"- Manufacturer / Model: (?P<value>.*)",
+            r"Manufacturer / Model: (?P<value>.*)",
             {"zh": "制造商／型号：{value}", "ja": "メーカー／モデル：{value}", "ko": "제조사 / 모델: {value}", "en": "Manufacturer / Model: {value}"},
         ),
         (
-            r"- Motherboard: (?P<value>.*)",
+            r"Motherboard: (?P<value>.*)",
             {"zh": "主板：{value}", "ja": "マザーボード：{value}", "ko": "마더보드: {value}", "en": "Motherboard: {value}"},
         ),
         (
-            r"- CPU: (?P<value>.*)",
+            r"CPU: (?P<value>.*)",
             {"zh": "CPU：{value}", "ja": "CPU：{value}", "ko": "CPU: {value}", "en": "CPU: {value}"},
         ),
         (
-            r"- Physical memory: (?P<value>.*)",
+            r"Physical memory: (?P<value>.*)",
             {"zh": "物理内存：{value}", "ja": "物理メモリ：{value}", "ko": "물리 메모리: {value}", "en": "Physical memory: {value}"},
         ),
         (
-            r"- GPU: (?P<value>.*)",
+            r"GPU: (?P<value>.*)",
             {"zh": "GPU：{value}", "ja": "GPU：{value}", "ko": "GPU: {value}", "en": "GPU: {value}"},
         ),
         (
-            r"- Display: (?P<value>.*)",
+            r"Display: (?P<value>.*)",
             {"zh": "显示器：{value}", "ja": "ディスプレイ：{value}", "ko": "디스플레이: {value}", "en": "Display: {value}"},
         ),
         (
-            r"- (?P<label>PC profile|Installed software|Storage|Folder index|File metadata index|Scan warnings|Security/exclusion summary): (?P<state>included|not included) ((?P<count>[\\d,]+) records)",
+            r"(?P<label>PC profile|Installed software|Storage|Folder index|File metadata index|Scan warnings|Security/exclusion summary): (?P<state>included|not included) \((?P<count>[\d,]+) records\)",
             {
                 "zh": "{label}：{state}（{count} 条记录）",
                 "ja": "{label}：{state}（{count} 件）",
