@@ -1,4 +1,5 @@
 PC Context Builder v1.1.0 — multilingual UI candidate, not yet published (2026-11-10)
+- Add a Windows HiDPI startup mitigation: request system DPI awareness before creating the Tk root, following CPython IDLE's established workaround. This prevents Windows from bitmap-stretching a DPI-unaware Tk window at the system display scale; existing awareness settings are preserved if Windows rejects a second change.
 - Fix a Windows CMD quoting failure when reading the product name from a Python `-c` command: store the shared value in `APP_NAME.txt`; Python loads it through `app_config.py`, and `start.bat` reads the same file with `set /p`.
 - Centralize the product name in `app_config.py`; use the same constant for the GUI title and `start.bat` startup/error logs, eliminating the stale console branding.
 - Fix untranslated Japanese text in the main-window scan-scope bullets and review overview table row labels; apply translations before rendering list/table values.
