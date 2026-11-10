@@ -21,10 +21,16 @@ if errorlevel 1 (
   popd
   exit /b 1
 )
+if not exist "%~dp0APP_NAME.txt" (
+  echo [ERROR] APP_NAME.txt was not found.
+  popd
+  pause
+  exit /b 1
+)
 set "APP_NAME="
-for /f "delims=" %%A in ('"%PYTHON_EXE%" -c "from app_config import APP_NAME; print(APP_NAME)"') do set "APP_NAME=%%A"
+set /p APP_NAME=<"%~dp0APP_NAME.txt"
 if not defined APP_NAME (
-  echo [ERROR] Could not read the application name from app_config.py.
+  echo [ERROR] APP_NAME.txt is empty.
   popd
   pause
   exit /b 1
