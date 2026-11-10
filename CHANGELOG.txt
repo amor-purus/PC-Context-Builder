@@ -1,4 +1,8 @@
 PC Context Builder v1.1.0 — multilingual UI candidate, not yet published (2026-11-10)
+- Add a Canvas-backed scrollable viewport to the main window, with a visible vertical scrollbar that stays synchronized with content size and window resizing.
+- Route Windows mouse-wheel input to the main page only while the pointer is over its canvas; preserve native language-combobox handling and separate dialog behavior.
+- Add built-in self-test guards for the main scrollbar, embedded scroll region, and scoped mouse-wheel routing. Windows Actions passed on commit `705ce0bed06a92386ab170a14613cda9cf78fc3b` (run #42848788522): CPython 3.14 x64 setup, source compilation, and synthetic self-test.
+- User confirmed that font rendering is now normal on the tested Windows 11 display after the DPI-awareness mitigation; the remaining target-device UI check is compact-window scrolling (issue #8).
 - Add a Windows HiDPI startup mitigation: request system DPI awareness before creating the Tk root, following CPython IDLE's established workaround. This prevents Windows from bitmap-stretching a DPI-unaware Tk window at the system display scale; existing awareness settings are preserved if Windows rejects a second change.
 - Fix a Windows CMD quoting failure when reading the product name from a Python `-c` command: store the shared value in `APP_NAME.txt`; Python loads it through `app_config.py`, and `start.bat` reads the same file with `set /p`.
 - Centralize the product name in `app_config.py`; use the same constant for the GUI title and `start.bat` startup/error logs, eliminating the stale console branding.
