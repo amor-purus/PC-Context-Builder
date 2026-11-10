@@ -2,6 +2,16 @@ PC Context Builder - Verification status
 Latest released version: v1.0.8
 Updated: 2026-11-10
 
+v1.1.0 multilingual UI candidate — not yet released:
+- Four interface languages implemented: Simplified Chinese (zh), Japanese (ja), Korean (ko), and English (en).
+- First-launch language selection follows the Windows/user locale when it matches one of the four supported languages; unsupported locales default to English.
+- Manual language selection is available from the main-window language menu and is persisted locally under %LOCALAPPDATA%\PC Context Builder\settings.json.
+- Main window, drive selection, review tabs, review labels, count/status text, confirmation dialogs, and ZIP result dialogs are localized.
+- The human-readable 00_README_FOR_AI.md inside the generated package follows the selected language; manifest.json records ui_language.
+- CSV column names, JSON keys, ZIP paths, scan collection, privacy filters, and privacy defaults remain unchanged.
+- GitHub Actions and built-in self-test verification for this candidate are in progress; target Windows 11 GUI and ZIP export verification have not yet been performed for v1.1.0.
+- v1.1.0 must remain an unpublished candidate until CI passes and target-device verification is completed.
+
 v1.0.9 branding candidate — not yet released:
 - Product name: PC Context Builder.
 - Current published release remains v1.0.8 under the former name AI PC Intelligence.
