@@ -8,8 +8,10 @@ v1.0.9 branding candidate — not yet released:
 - Candidate code renames the GUI and context-pack output paths/names to PC Context Builder / PC_Context_Pack.
 - Intended scope is branding, output naming, generated package documentation, and regression expectations only; scan collection and privacy-filter logic are unchanged.
 - GitHub Actions Windows CI: PASS on candidate commit 539efb2500e519b45f7bc730e5dbdb14458d3498 (workflow run #42770007064), including CPython 3.14 x64 setup, syntax compilation, and built-in self-test with synthetic ZIP naming/path assertions.
-- Windows 11 target-device GUI startup, real scan, and user-side ZIP export verification: pending.
+- Windows 11 target-device verification (user-reported, 2026-11-10; Windows 11 / CPython 3.14 x64): SELF-TEST PASS; GUI startup PASS; real scan PASS; Review PASS; ZIP export PASS.
 - Merged main candidate commit 01e2e494a09c635174eb55287355eded35369d38: Windows Actions PASS (run #42770196706); the preceding PR validation also passed.
+- Post-license main commit 94193e73c93e5b3e6d9d0673de14e0bba60069a1: Windows Actions PASS (run #42771639037).
+- MIT License added as `LICENSE`. Repository remains Private while historical commit-email cleanup is pending.
 
 v1.0.8 release verification — Phase 1 security hardening:
 - Release state: published GitHub Release and v1.0.8 tag (2026-11-10).
