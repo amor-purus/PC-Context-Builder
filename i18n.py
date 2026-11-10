@@ -800,7 +800,7 @@ def _dynamic_translation(text: str, language: str) -> str:
             {"zh": "打包扫描警告（{count} 项）", "ja": "スキャン警告を梱包する（{count} 件）", "ko": "스캔 경고 패키징({count}개)", "en": "Include scan warnings ({count} items)"},
         ),
         (
-            r"PC profile was not selected for inclusion\\.",
+            r"PC profile was not selected for inclusion\.",
             {"zh": "未选择包含电脑基本信息。", "ja": "PC基本情報は収録対象に選択されていません。", "ko": "PC 프로필은 포함하도록 선택되지 않았습니다.", "en": "PC profile was not selected for inclusion."},
         ),
 
