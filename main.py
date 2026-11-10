@@ -2007,6 +2007,14 @@ def self_test():
             pack_readme = z.read("PC_Context_Pack/00_README_FOR_AI.md").decode("utf-8-sig")
             assert "# PC Context Pack" in pack_readme
             assert "How an AI assistant should use this package" in pack_readme
+        zh_path, _, _ = build_package(fake, choices, td, "zh")
+        with zipfile.ZipFile(zh_path) as z:
+            localized_readme = z.read("PC_Context_Pack/00_README_FOR_AI.md").decode("utf-8-sig")
+            localized_manifest = json.loads(z.read("PC_Context_Pack/06_SCAN_REPORT/manifest.json").decode("utf-8-sig"))
+            assert "# PC 上下文资料包" in localized_readme
+            assert "## 电脑概览" in localized_readme
+            assert "架构版本：" in localized_readme
+            assert localized_manifest["ui_language"] == "zh"
             assert "ChatGPT" not in pack_readme
             assert "PC_Context_Pack/00_README_FOR_AI.md" in names
             assert "PC_Context_Pack/04_FILE_INDEX/files.csv" in names
