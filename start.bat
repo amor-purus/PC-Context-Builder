@@ -10,6 +10,7 @@ if not exist "%PYTHON_EXE%" (
   echo [ERROR] Python 3.14 x64 was not found at the standard installation paths.
   echo Please install Python 3.14 x64 using the default location.
   pause
+  popd
   exit /b 1
 )
 "%PYTHON_EXE%" -c "import sys; sys.exit(0 if sys.version_info[:2] == (3,14) and sys.maxsize > 2**32 else 1)"
@@ -17,6 +18,7 @@ if errorlevel 1 (
   echo [ERROR] This tool requires CPython 3.14 x64. No scan was started.
   "%PYTHON_EXE%" --version
   pause
+  popd
   exit /b 1
 )
 set "APP_NAME="
