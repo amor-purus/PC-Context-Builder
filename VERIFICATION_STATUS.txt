@@ -1,6 +1,62 @@
+## Language-preference robustness follow-up — 2026-11-11
+- `load_language_preference()` previously called `.get()` on any parsed JSON value. A manually edited or corrupted but syntactically valid settings file containing a list, number, string, or null could raise `AttributeError` and prevent app startup.
+- The loader now accepts only a JSON object containing a supported language code; other JSON shapes and unsupported codes fall back to the detected system locale.
+- Added isolated temporary-file self-tests for list, null, number, string, a supported language object, and an unsupported language code. The user's actual settings file is not read or changed by this test.
+- Code commits: `9633d4b0a6c1257fe198f5097ad865f5649f5379` (`i18n.py`) and `9b8ce16cf897bf48a912c3a683f88e7e13a969fa` (`main.py` tests).
+- Windows Actions #42857918921 passed on the loader commit; #42857930781 passed on the source+test commit (CPython 3.14 x64 setup, source compilation, built-in self-test). Earlier documentation head 580b4a58594a622100addf02c3286e7846ce9b91 passed #42858038772; the subsequent full verification-doc head 02e124f310308ea78b7ef10c281a8515144ea44e passed #42858546627.
+
+## Software-selection privacy regression — Windows Actions PASS (2026-11-11)
+- Source review found that `build_package()` filtered the optional `browser_summary` by application name only. If two registry entries shared a name but had different versions or publishers, the summary could include metadata associated with an unselected row.
+- The filter now requires an exact `(Name, Version, Publisher)` match against selected software rows. Fix and regression fixture are in `main.py` commit `9e850ea34b4a0d4be2b7de02dd93f674cb7cfa74`; the follow-up fixture syntax correction is `ee330ab387349617ce27e6e9ae2e3776b86b31b4`.
+- The synthetic package includes duplicate application names at versions 1.0 (selected) and 0.9 (not selected), and asserts that version 0.9 is absent from the generated system profile.
+- Windows Actions run [#42857099419](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42857099419) passed on corrected head `ee330ab387349617ce27e6e9ae2e3776b86b31b4`: CPython 3.14 x64 setup, source compilation, and built-in synthetic self-test succeeded.
+- Failed attempt preserved: Windows Actions [#42856905898](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42856905898) failed during `py_compile` because the newly edited synthetic fixture had a malformed list boundary (line 2167); the synthetic self-test was skipped. The fixture was repaired and the next run passed.
+
+## Source-review follow-up — Windows Actions PASS (2026-11-11)
+- Fixed a missing localization for the main-window footer label “Python standard library only”; zh/ja/ko/en translation and self-test assertions were added. Source commit `c42dd060ec987df3541b548aeb57300eb42435bb`; assertions in `8bd20592b6d23d2305380ae190bddac639234c9f`.
+- Fixed a UI state issue: changing language while the modeless drive selector is open no longer re-enables the main scan button. The selector remains active and a second scan cannot be started from the rebuilt main window. Source commit `2d3f64623720b2c37a221ce03194c58b3ca0d465`; source-guard regression test included in `8bd2059`.
+- Strengthened the localized no-PC-profile case: the self-test now builds a ZIP for each of zh/ja/ko/en with the PC profile category disabled and checks the actual generated README sentence. Test expansion commit `ee31295d34b9a8b82c900ac04a185ab278754721`.
+- Windows Actions run [#42856545429](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42856545429) completed successfully on PR head `8bd20592b6d23d2305380ae190bddac639234c9f`: CPython 3.14 x64 setup, source compilation, and built-in synthetic self-test all passed.
+- The localized README regex fix is in `9dff0a1ac8a1d691195b7dd89d812dca8dd24f12`; the original helper assertions were in `092eeb4`. The end-to-end ZIP/README integration assertions are now also covered.
+
+## Localization regression follow-up — 2026-11-11
+- Source review found that the dynamic translation regex for the generated README sentence “PC profile was not selected for inclusion.” was over-escaped and did not match the actual generated line. This could leave that sentence in English for zh/ja/ko output when the PC profile category was not selected.
+- Fixed the regex in `i18n.py` commit `9dff0a1ac8a1d691195b7dd89d812dca8dd24f12`.
+- Added built-in self-test assertions for zh/ja/ko/en in `main.py` commit `092eeb47cc464c5ab9355a5c5897be5508b2a8c5`.
+- At the time of this entry, CI for the just-added correction had not yet returned. The later full source/doc head 274430dc4bdfb21a901db7b7f4d56af12bc3cc8e subsequently passed Windows Actions #42855493606.
+
+## Final target-device acceptance — 2026-11-11
+- User confirmation: the Windows 11 target-device UI is now satisfactory and no remaining issues were found. The previously pending main-window scrollbar/scrolling and responsive text-reflow behavior are accepted as resolved.
+- GitHub issue [#8](https://github.com/yanchengz685-bot/PC-Context-Builder/issues/8) was closed as completed after this confirmation.
+- Scrollbar candidate: `705ce0bed06a92386ab170a14613cda9cf78fc3b`; responsive reflow candidate: `3595ef70279170094889932b2143ed02141161ce`.
+- Windows Actions [#42851616727](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42851616727) passed on PR head `c8522e9c1834f83841a7e9628bcb92344a6ee909`, which includes the responsive reflow code: CPython 3.14 x64 setup, source compilation, and built-in synthetic self-test. CI does not replace the user's separate physical-device confirmation.
+- PR #6 remains Open / Draft / unmerged. v1.1.0 is still an unpublished candidate; main and the formal v1.0.8 release/tag remain unchanged.
+
 PC Context Builder - Verification status
 Latest released version: v1.0.8
-Updated: 2026-11-10
+Updated: 2026-11-11
+
+v1.1.0 multilingual UI candidate — not yet released:
+- Four interface languages implemented: Simplified Chinese (zh), Japanese (ja), Korean (ko), and English (en).
+- First-launch language selection follows the Windows/user locale when it matches one of the four supported languages; unsupported locales default to English.
+- Manual language selection is available from the main-window language menu and is persisted locally under %LOCALAPPDATA%\PC Context Builder\settings.json.
+- Main window, drive selection, review tabs, review labels, count/status text, confirmation dialogs, and ZIP result dialogs are localized.
+- The human-readable 00_README_FOR_AI.md inside the generated package follows the selected language; manifest.json records ui_language.
+- CSV column names, JSON keys, ZIP paths, scan collection, privacy filters, and privacy defaults remain unchanged.
+- GitHub Actions Windows CI: PASS on candidate commit 2774046f6aed6b3169337c76ff451cc421f51a42 (run #42802155690), using CPython 3.14.10 x64; syntax compilation and built-in self-test passed. The synthetic self-test checks the generated README headings and manifest ui_language for zh/ja/ko/en, along with existing ZIP structure and privacy assertions.
+- Locale-appropriate Windows UI fonts are selected for Simplified Chinese, Japanese, Korean, and English.
+- Product branding fix: `APP_NAME.txt` is the single source for the product name; `app_config.py` loads it for Python/GUI, and `start.bat` reads the same file with `set /p`. This avoids nested `cmd.exe` quoting around the Python executable path. Historical release notes retain references to the former brand intentionally.
+- Added a self-test guard that verifies `APP_NAME.txt`, the Python constant, and the batch `set /p` integration agree; it also rejects the old fragile `for /f` Python command extraction. GitHub Actions Windows CI: PASS on commit `995047ec983b56bd689c84800ece709ea2a89030` (run #42808091904), CPython 3.14 x64; source compilation and the built-in synthetic self-test passed. The user subsequently confirmed the CMD launcher on Windows 11, including a Python executable path containing spaces, on 2026-11-10.
+- Localization regression fix: scan-scope bullets are translated before the bullet prefix is added, and review overview row labels are translated before insertion into the Treeview. Self-test assertions cover all five Chinese scan-scope entries and key overview labels.
+- Latest code candidate HEAD at review time: `66e7618f9edda74d48ed72f77f97f2db1d32ad5b` (2026-11-10). GitHub Actions Windows self-test run #42808214205 completed successfully on this exact commit: CPython 3.14 x64 setup, source compilation, and the built-in synthetic self-test all passed.
+- Target-device verification (user-reported, 2026-11-10; Windows 11 / CPython 3.14 x64): built-in SELF-TEST PASS; CMD startup PASS, including Python installed under a path containing spaces; four-language UI and manual language switching PASS; language preference persistence PASS; Review PASS; ZIP export PASS. The user reports all prescribed functional checks completed normally.
+- Font sharpness: after the System-DPI-awareness candidate, the user confirmed that text now appears normal on their target Windows 11 display (2026-11-10). The corresponding low-severity issue [#7](https://github.com/yanchengz685-bot/PC-Context-Builder/issues/7) was closed based on this user-reported retest.
+- HiDPI mitigation candidate added in `main.py`: on Windows, call `shcore.SetProcessDpiAwareness(1)` (system DPI-aware) before `Tk()` creates the first window. This follows CPython IDLE's established `fix_win_hidpi` approach and is intended to prevent bitmap stretching of a DPI-unaware Tk window at the system display scale. If Windows reports that process awareness is already set, or the API is unavailable, the app preserves the existing mode and continues startup.
+- Regression guards assert that the DPI-awareness call precedes `Tk()`; on Windows, the built-in self-test also queries `GetProcessDpiAwareness` and rejects a still-unaware process. Windows Actions passed on code commit `08a7dfe4768d5bc684e5be268ba2f6604a5f7719` (run #42846605647), Changelog commit `c54392900e12a5f1db1efb4134e65b4b8af1f26e` (run #42846646796), and latest verification-doc commit `528601957ff08757a4686a9c471c7002c481eaa5` (run #42846657204). This CI/source check is not proof of crisp rendering on the user's physical display.
+- Limitation: this candidate requests system-DPI awareness, not per-monitor-v2 handling. Windows may still bitmap-scale the window if it is moved to a monitor with a different DPI/scaling factor. Text sharpness is now user-reported as normal on the tested display setup.
+- The user-reported functional acceptance remains PASS, and font sharpness is now reported as resolved. Issue #8 covers page scrolling and responsive text reflow. The scrollbar/wheel code passed CI; the reflow follow-up is also CI-passed on latest head `c8522e9` (run #42851616727). The user subsequently confirmed on 2026-11-11 that the Windows 11 target-device reflow and scrolling behavior is satisfactory; issue #8 was closed. Keep v1.1.0 unpublished and PR #6 Draft.
+
+- Follow-up user report: scrollbar and wheel navigation are present, but main-window text did not reflow as the window width changed. Expected: wider means the same/fewer lines; narrower means the same/more lines. Candidate commit `3595ef70279170094889932b2143ed02141161ce` registers responsive wrap labels and recalculates wraplength on Canvas width changes. The built-in self-test checks monotonic wrap-width behavior and source wiring. Latest PR head `c8522e9c1834f83841a7e9628bcb92344a6ee909` passed Windows Actions [#42851616727](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42851616727): CPython 3.14 x64 setup, source compilation, and synthetic self-test. Actual line-count reflow and scrollbar range behavior were subsequently accepted by the user on the Windows 11 target device on 2026-11-11; issue #8 was closed.
 
 v1.0.9 branding candidate — not yet released:
 - Product name: PC Context Builder.
@@ -11,7 +67,7 @@ v1.0.9 branding candidate — not yet released:
 - Windows 11 target-device verification (user-reported, 2026-11-10; Windows 11 / CPython 3.14 x64): SELF-TEST PASS; GUI startup PASS; real scan PASS; Review PASS; ZIP export PASS.
 - Merged main candidate commit 01e2e494a09c635174eb55287355eded35369d38: Windows Actions PASS (run #42770196706); the preceding PR validation also passed.
 - Post-license main commit 94193e73c93e5b3e6d9d0673de14e0bba60069a1: Windows Actions PASS (run #42771639037).
-- MIT License added as `LICENSE`. Repository remains Private while historical commit-email cleanup is pending.
+- MIT License added as `LICENSE`. Repository remains Private. Historical commit-email cleanup is a separate repository-maintenance concern and does not block the completed UI acceptance.
 
 v1.0.8 release verification — Phase 1 security hardening:
 - Release state: published GitHub Release and v1.0.8 tag (2026-11-10).

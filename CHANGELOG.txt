@@ -1,3 +1,52 @@
+PC Context Builder v1.1.0 — local language-preference robustness (2026-11-11; candidate, not released)
+- Harden `load_language_preference()`: a syntactically valid but non-object JSON value (array, null, number, or string) now falls back to the detected system language instead of raising an AttributeError during application startup.
+- Add self-test coverage using an isolated temporary settings file for list/null/number/string shapes, a valid supported language object, and an unsupported language code. The test does not read or modify the user's actual settings file.
+- Source commits: `9633d4b0a6c1257fe198f5097ad865f5649f5379` (loader guard) and `9b8ce16cf897bf48a912c3a683f88e7e13a969fa` (tests). Windows Actions [#42857918921](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42857918921) and [#42857930781](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42857930781) passed (CPython 3.14 x64 setup, source compilation, and built-in synthetic self-test). Documentation head `ba00bb9a23f27057524772b30e062eda372bd639` passed Windows Actions [#42858200838](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42858200838); the subsequent full verification-doc head `02e124f310308ea78b7ef10c281a8515144ea44e` passed [#42858546627](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42858546627).
+
+PC Context Builder v1.1.0 — software-selection privacy fix (2026-11-11; candidate, not released)
+- Tighten the optional browser-summary filter: only rows matching a selected software entry's exact Name + Version + Publisher tuple are retained in system_profile.json. Matching by application name alone could leak summary metadata for an unselected version when duplicate application names existed.
+- Expand the synthetic package fixture with the same application name at versions 1.0 (selected) and 0.9 (not selected), then assert that version 0.9 is absent from the generated system profile.
+- Windows Actions run [#42857099419](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42857099419) passed on code head `ee330ab387349617ce27e6e9ae2e3776b86b31b4`: CPython 3.14 x64 setup, source compilation, and built-in synthetic self-test.
+- The preceding run [#42856905898](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42856905898) failed at source compilation because the newly edited synthetic fixture had a missing list terminator; the self-test step was skipped. Fixture syntax was corrected in `ee330ab387349617ce27e6e9ae2e3776b86b31b4`, and the subsequent run #42857099419 passed.
+- Privacy boundary remains user selection-based; PR #6 is Open / Draft / unmerged and v1.1.0 remains unpublished.
+
+PC Context Builder v1.1.0 — source-review follow-up (2026-11-11; candidate, not released)
+- Fix an untranslated main-window footer label: “Python standard library only” now follows zh/ja/ko/en, with four-language self-test assertions.
+- Preserve the disabled scan-start state when the user changes language while the modeless drive-selection dialog is open. This prevents rebuilding the main window from re-enabling a second scan/drive-selection action. Add a source-guard regression assertion.
+- Expand the no-PC-profile README regression test to build actual ZIPs and assert the localized sentence in the generated README for zh/ja/ko/en, rather than testing the translation helper alone.
+- CI passed on code-containing PR head `8bd20592b6d23d2305380ae190bddac639234c9f`: Windows Actions run [#42856545429](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42856545429), CPython 3.14 x64 setup, source compilation, and built-in synthetic self-test.
+- Source commits: `2d3f64623720b2c37a221ce03194c58b3ca0d465` (drive dialog scan lock), `c42dd060ec987df3541b548aeb57300eb42435bb` (footer translations), `8bd20592b6d23d2305380ae190bddac639234c9f` (footer assertions). Previous README translation fix/integration test: `9dff0a1`, `ee31295`.
+- PR #6 remains Open / Draft / unmerged; v1.1.0 remains unpublished.
+
+PC Context Builder v1.1.0 — localization regression fix (2026-11-11; candidate, not released)
+- Fix a regular-expression escaping error in the localized README sentence for the case where the PC profile is not selected. The previous pattern expected a backslash that the generated README sentence does not contain, leaving that sentence in English in zh/ja/ko output.
+- Add built-in self-test assertions for that sentence in Simplified Chinese, Japanese, Korean, and English. Code commits: `9dff0a1ac8a1d691195b7dd89d812dca8dd24f12` (i18n fix) and `092eeb47cc464c5ab9355a5c5897be5508b2a8c5` (regression assertions). Latest code head has not yet been confirmed by a retrievable CI result.
+
+PC Context Builder v1.1.0 — target-device acceptance complete; candidate not yet published (2026-11-11)
+- User-confirmed Windows 11 target-device acceptance: the main-window vertical scrollbar, scrolling behavior, responsive text reflow, and overall UI now work satisfactorily; the user reports no remaining issues.
+- Close [issue #8](https://github.com/yanchengz685-bot/PC-Context-Builder/issues/8) as completed based on the user's final device confirmation.
+- Scrollbar implementation: `705ce0bed06a92386ab170a14613cda9cf78fc3b`; responsive text-reflow implementation: `3595ef70279170094889932b2143ed02141161ce`.
+- Windows Actions run [#42851616727](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42851616727) passed on code-containing PR head `c8522e9c1834f83841a7e9628bcb92344a6ee909`: CPython 3.14 x64 setup, source compilation, and built-in synthetic self-test. This CI evidence is separate from the user's physical-device confirmation.
+- PR #6 remains Open / Draft / unmerged. No merge, v1.1.0 publication, main-branch change, or v1.0.8 release change was made.
+
+PC Context Builder v1.1.0 — multilingual UI candidate, not yet published (2026-11-10; updated 2026-11-11)
+- Fix responsive main-window text wrapping: long descriptions, scan-scope bullets, privacy and important notices, and status/progress text now recalculate wraplength from the Canvas viewport width on resize. Wider windows allow fewer or equal text lines; narrower windows allow more or equal lines.
+- Extend the built-in self-test with monotonic wrap-width checks and source guards for reflow on Canvas resize. The candidate code is in commit `3595ef70279170094889932b2143ed02141161ce`; latest PR head `c8522e9c1834f83841a7e9628bcb92344a6ee909` passed Windows Actions run [#42851616727](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42851616727): CPython 3.14 x64 setup, source compilation, and synthetic self-test. Target-device reflow/scroll acceptance was subsequently confirmed by the user on Windows 11 on 2026-11-11; see the final acceptance entry above.
+- Add a Canvas-backed scrollable viewport to the main window, with a visible vertical scrollbar that stays synchronized with content size and window resizing.
+- Route Windows mouse-wheel input to the main page only while the pointer is over its canvas; preserve native language-combobox handling and separate dialog behavior.
+- Add built-in self-test guards for the main scrollbar, embedded scroll region, and scoped mouse-wheel routing. Windows Actions passed on commit `705ce0bed06a92386ab170a14613cda9cf78fc3b` (run #42848788522): CPython 3.14 x64 setup, source compilation, and synthetic self-test.
+- User confirmed that font rendering is now normal on the tested Windows 11 display after the DPI-awareness mitigation; the remaining target-device UI check is compact-window scrolling (issue #8).
+- Add a Windows HiDPI startup mitigation: request system DPI awareness before creating the Tk root, following CPython IDLE's established workaround. This prevents Windows from bitmap-stretching a DPI-unaware Tk window at the system display scale; existing awareness settings are preserved if Windows rejects a second change.
+- Fix a Windows CMD quoting failure when reading the product name from a Python `-c` command: store the shared value in `APP_NAME.txt`; Python loads it through `app_config.py`, and `start.bat` reads the same file with `set /p`.
+- Centralize the product name in `app_config.py`; use the same constant for the GUI title and `start.bat` startup/error logs, eliminating the stale console branding.
+- Fix untranslated Japanese text in the main-window scan-scope bullets and review overview table row labels; apply translations before rendering list/table values.
+- Add a four-language interface: Simplified Chinese, Japanese, Korean, and English.
+- Detect the Windows/user locale on first launch; allow manual switching from the main window and persist the selected language in a local settings file.
+- Localize the main window, drive selector, scan review tabs and headings, status text, confirmation dialogs, and ZIP-creation messages.
+- Generate the human-readable AI-facing README inside the ZIP in the selected language and record the UI language in the manifest.
+- Keep JSON field names, CSV headers, ZIP paths, scan collection, privacy filters, and package schema stable.
+- Keep the v1.0.8 release/tag unchanged. This v1.1.0 candidate is not published. Windows 11 target-device UI acceptance was confirmed by the user on 2026-11-11; PR #6 remains Draft and unmerged.
+
 PC Context Builder v1.0.9 — branding candidate, not yet published (2026-11-10)
 - Rename the application from AI PC Intelligence to PC Context Builder.
 - Describe the product as a local Windows PC context-pack builder for AI assistants, rather than a PC intelligence/diagnostics system.

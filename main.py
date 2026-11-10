@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""PC Context Builder v1.0.9 - Local, read-only Windows PC context packager.
+"""PC Context Builder v1.1.0 - Local, read-only Windows PC context packager.
 
 No third-party Python packages are required. File contents are never opened or copied.
 """
@@ -23,11 +23,15 @@ import traceback
 import zipfile
 from ctypes import wintypes
 from pathlib import Path
-from tkinter import Tk, Toplevel, StringVar, BooleanVar, filedialog, messagebox
+from tkinter import Tk, Toplevel, Canvas, StringVar, BooleanVar, filedialog, messagebox
 from tkinter import ttk
 
-APP_NAME = "PC Context Builder"
-VERSION = "1.0.9"
+from app_config import APP_NAME
+from i18n import (
+    LANGUAGE_CODES_BY_NAME, LANGUAGE_NAMES, LANGUAGE_ORDER,
+    load_language_preference, save_language_preference, tr, translate_widget_tree, ui_font,
+)
+VERSION = "1.1.0"
 MAX_FILES = 150_000
 MAX_FOLDERS = 30_000
 MAX_SCAN_SECONDS = 600
@@ -801,7 +805,7 @@ def safe_json_bytes(value):
     return (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8-sig", errors="replace")
 
 
-def generate_readme(payload, selected, included_counts):
+def generate_readme(payload, selected, included_counts, language="en"):
     sysd = payload["system"]
     hw = sysd.get("hardware", {})
     osd = sysd.get("os", {})
@@ -845,10 +849,10 @@ def generate_readme(payload, selected, included_counts):
         "", "## How an AI assistant should use this package", "",
         "Use system_profile.json to understand the machine environment; installed_software.csv to identify selected software; volumes.csv for storage; folders.csv and files.csv as a searchable metadata index only. Do not assume the package contains file contents.",
     ]
-    return "\n".join(lines) + "\n"
+    return "\n".join(tr(line, language) for line in lines) + "\n"
 
 
-def build_package(payload, choices, output_dir):
+def build_package(payload, choices, output_dir, language="en"):
     selected = dict(choices.get("categories", {}))
     system = payload["system"]
     files = [r for r in payload["files"] if r.get("Include", False)] if selected.get("files") else []
@@ -860,9 +864,23 @@ def build_package(payload, choices, output_dir):
     system_out = json.loads(json.dumps(system, ensure_ascii=False)) if selected.get("system") else {}
     if system_out and selected.get("software"):
         included_apps = [r for r in system.get("software", []) if r.get("Include", False)]
-        include_names = {str(r.get("Name", "")) for r in included_apps}
+        included_browser_rows = {
+            (
+                str(r.get("Name", "")),
+                str(r.get("Version", "")),
+                str(r.get("Publisher", "")),
+            )
+            for r in included_apps
+        }
         system_out["software"] = [{k:v for k,v in r.items() if k != "Include"} for r in included_apps]
-        system_out["browser_summary"] = [r for r in system_out.get("browser_summary", []) if r.get("Name") in include_names]
+        system_out["browser_summary"] = [
+            r for r in system_out.get("browser_summary", [])
+            if (
+                str(r.get("Name", "")),
+                str(r.get("Version", "")),
+                str(r.get("Publisher", "")),
+            ) in included_browser_rows
+        ]
     elif system_out:
         system_out.pop("software", None)
         system_out.pop("browser_summary", None)
@@ -878,6 +896,7 @@ def build_package(payload, choices, output_dir):
     }
     manifest = {
         "schema_version": VERSION,
+        "ui_language": language,
         "generated_at": now_iso(),
         "scan_time": payload.get("scan_time"),
         "scan_status": payload.get("filesystem_status"),
@@ -895,7 +914,7 @@ def build_package(payload, choices, output_dir):
     temp = dest + ".tmp"
     try:
         with zipfile.ZipFile(temp, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
-            zf.writestr("PC_Context_Pack/00_README_FOR_AI.md", generate_readme(payload, selected, counts))
+            zf.writestr("PC_Context_Pack/00_README_FOR_AI.md", generate_readme(payload, selected, counts, language))
             if system_out:
                 zf.writestr("PC_Context_Pack/01_PC_PROFILE/system_profile.json", safe_json_bytes(system_out))
             if selected.get("software"):
@@ -934,9 +953,10 @@ def build_package(payload, choices, output_dir):
 
 
 class ReviewWindow(Toplevel):
-    def __init__(self, master, payload, on_confirm):
+    def __init__(self, master, payload, on_confirm, language="ja"):
         super().__init__(master)
-        self.title("収集結果の確認と梱包対象の選択")
+        self.language = language
+        self.title(tr("収集結果の確認と梱包対象の選択", self.language))
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
         width = min(1080, max(760, screen_w - 60))
@@ -960,7 +980,7 @@ class ReviewWindow(Toplevel):
         self.file_page = 0
         self.folder_page = 0
         self.software_page = 0
-        self.status_var = StringVar(value="メタデータ一覧を確認してください。")
+        self.status_var = StringVar(value=tr("メタデータ一覧を確認してください。", self.language))
         self._on_close_callback = None
         self._closed = False
         self._build()
@@ -984,6 +1004,15 @@ class ReviewWindow(Toplevel):
         except Exception:
             pass
 
+    def set_language(self, language):
+        self.language = language
+        self.title(tr("収集結果の確認と梱包対象の選択", self.language))
+        self.status_var.set(tr("メタデータ一覧を確認してください。", self.language))
+        self._build()
+
+    def t(self, text):
+        return tr(text, self.language)
+
     def set_on_close(self, callback):
         self._on_close_callback = callback
 
@@ -1002,17 +1031,24 @@ class ReviewWindow(Toplevel):
                     pass
 
     def _build(self):
+        old_container = getattr(self, "container", None)
+        if old_container is not None:
+            try:
+                old_container.destroy()
+            except Exception:
+                pass
         # Keep the action footer pinned to the bottom. The prior pack-only layout
         # allowed the expanding Notebook to consume the available height and clip
         # the footer (including the ZIP-creation action) on some Windows layouts.
-        outer = ttk.Frame(self)
+        self.container = ttk.Frame(self)
+        outer = self.container
         outer.pack(fill="both", expand=True)
         outer.columnconfigure(0, weight=1)
         outer.rowconfigure(1, weight=1)
 
         top = ttk.Frame(outer, padding=12)
         top.grid(row=0, column=0, sticky="ew")
-        ttk.Label(top, text="スキャン結果のレビュー", font=("Yu Gothic UI", 16, "bold")).pack(anchor="w")
+        ttk.Label(top, text="スキャン結果のレビュー", font=ui_font(self.language, 16, "bold")).pack(anchor="w")
         counts = self.payload["filesystem_counts"]
         ttk.Label(top, text=f"ファイル {counts['files']:,} 件 / フォルダー {counts['folders']:,} 件 / 除外 {counts['skipped']:,} 件 / エラー {counts['errors']:,} 件", foreground="#555").pack(anchor="w", pady=(4,0))
         if self.payload.get("filesystem_status") != "completed":
@@ -1031,6 +1067,7 @@ class ReviewWindow(Toplevel):
         ttk.Label(bottom, textvariable=self.status_var).pack(side="left", fill="x", expand=True)
         ttk.Button(bottom, text="閉じる（梱包しない）", command=self._close_review).pack(side="right", padx=5)
         ttk.Button(bottom, text="梱包内容を確認してZIP作成へ", command=self._approve).pack(side="right", padx=5)
+        translate_widget_tree(self.container, self.language)
 
     def _tab(self, name):
         frame = ttk.Frame(self.nb, padding=10)
@@ -1057,9 +1094,10 @@ class ReviewWindow(Toplevel):
             ("ブラウザー", "; ".join(x.get("Name", "") + " " + x.get("Version", "") for x in s.get("browser_summary", []))),
         ]
         tree = ttk.Treeview(f, columns=("item","value"), show="headings", height=15)
-        tree.heading("item", text="項目"); tree.heading("value", text="取得値")
+        tree.heading("item", text=self.t("項目")); tree.heading("value", text=self.t("取得値"))
         tree.column("item", width=180, stretch=False); tree.column("value", width=750)
-        for row in lines: tree.insert("", "end", values=row)
+        for label, value in lines:
+            tree.insert("", "end", values=(self.t(label), value))
         tree.pack(fill="both", expand=True, pady=8)
         ttk.Label(f, text="コンピューター名とユーザー名を含むパスは匿名化します。機器固有IDやシリアル番号は取得しません。", foreground="#555", wraplength=950).pack(anchor="w")
 
@@ -1069,7 +1107,8 @@ class ReviewWindow(Toplevel):
         self._category_check(f, "software", f"インストール済みソフトウェア一覧を梱包する（{len(apps):,}件）")
         ttk.Label(f, text="アプリ名・発行元・バージョンを検索できます。初期状態ではすべて除外され、選択した行だけがZIPに入ります。", foreground="#555").pack(anchor="w", pady=4)
         search = ttk.Frame(f); search.pack(fill="x", pady=(0,5))
-        self.software_search_var = StringVar()
+        if not hasattr(self, "software_search_var"):
+            self.software_search_var = StringVar()
         ttk.Label(search, text="アプリ検索：").pack(side="left")
         ent = ttk.Entry(search, textvariable=self.software_search_var, width=36); ent.pack(side="left", padx=4)
         ent.bind("<KeyRelease>", lambda _e: self._reset_software_page())
@@ -1111,9 +1150,9 @@ class ReviewWindow(Toplevel):
         self.software_rows = rows[start:start + SOFTWARE_PAGE_SIZE]
         self.software_tree.delete(*self.software_tree.get_children())
         for i, a in enumerate(self.software_rows):
-            self.software_tree.insert("", "end", iid=str(i), values=("はい" if a.get("Include",False) else "いいえ",a.get("Name",""),a.get("Version",""),a.get("Publisher",""),a.get("InstallLocation","")))
+            self.software_tree.insert("", "end", iid=str(i), values=(self.t("はい") if a.get("Include",False) else self.t("いいえ"),a.get("Name",""),a.get("Version",""),a.get("Publisher",""),a.get("InstallLocation","")))
         included = sum(1 for r in self.payload["system"].get("software", []) if r.get("Include",False))
-        self.software_page_label.configure(text=f"検索結果 {len(rows):,} 件 / 全アプリ {len(self.payload['system'].get('software', [])):,} 件 / 選択 {included:,} 件 / ページ {self.software_page+1}/{pages}（1ページ {SOFTWARE_PAGE_SIZE} 件）")
+        self.software_page_label.configure(text=self.t(f"検索結果 {len(rows):,} 件 / 全アプリ {len(self.payload['system'].get('software', [])):,} 件 / 選択 {included:,} 件 / ページ {self.software_page+1}/{pages}（1ページ {SOFTWARE_PAGE_SIZE} 件）"))
 
     def _reset_software_page(self):
         self.software_page = 0
@@ -1135,7 +1174,7 @@ class ReviewWindow(Toplevel):
             row = self.software_rows[int(item)]
             row["Include"] = not row.get("Include", False)
             vals = list(self.software_tree.item(item, "values"))
-            vals[0] = "はい" if row["Include"] else "いいえ"
+            vals[0] = self.t("はい") if row["Include"] else self.t("いいえ")
             self.software_tree.item(item, values=vals)
         except (IndexError, ValueError):
             return
@@ -1162,7 +1201,8 @@ class ReviewWindow(Toplevel):
         folder_frame = ttk.LabelFrame(f, text=f"フォルダー一覧（{len(folders):,} 件）", padding=5)
         folder_frame.pack(fill="x", pady=(0,6))
         fsearch = ttk.Frame(folder_frame); fsearch.pack(fill="x", pady=(0,4))
-        self.folder_search_var = StringVar()
+        if not hasattr(self, "folder_search_var"):
+            self.folder_search_var = StringVar()
         ttk.Label(fsearch, text="フォルダー検索：").pack(side="left")
         fent = ttk.Entry(fsearch, textvariable=self.folder_search_var, width=36); fent.pack(side="left", padx=4)
         fent.bind("<KeyRelease>", lambda _e: self._reset_folder_page())
@@ -1233,14 +1273,14 @@ class ReviewWindow(Toplevel):
         self.folder_tree.delete(*self.folder_tree.get_children())
         self.folder_rows = self._visible_folder_rows()
         for i, r in enumerate(self.folder_rows):
-            self.folder_tree.insert("", "end", iid=str(i), values=("はい" if r.get("Include",False) else "いいえ",r.get("Drive",""),r.get("Path",""),r.get("Depth",0)))
+            self.folder_tree.insert("", "end", iid=str(i), values=(self.t("はい") if r.get("Include",False) else self.t("いいえ"),r.get("Drive",""),r.get("Path",""),r.get("Depth",0)))
         query = self.folder_search_var.get().strip().casefold()
         total = len(self.payload["folders"])
         if query:
             total = sum(1 for r in self.payload["folders"] if query in r["Path"].casefold() or query in r["Drive"].casefold())
         pages = max(1, (total + FOLDER_PAGE_SIZE - 1) // FOLDER_PAGE_SIZE)
         included = sum(1 for r in self.payload["folders"] if r.get("Include",False))
-        self.folder_page_label.configure(text=f"検索結果 {total:,} / 選択 {included:,} / {self.folder_page+1}/{pages}")
+        self.folder_page_label.configure(text=self.t(f"検索結果 {total:,} / 選択 {included:,} / {self.folder_page+1}/{pages}"))
 
     def _reset_folder_page(self):
         self.folder_page = 0
@@ -1256,7 +1296,7 @@ class ReviewWindow(Toplevel):
         try:
             row = self.folder_rows[int(item)]
             row["Include"] = not row.get("Include", False)
-            vals = list(self.folder_tree.item(item, "values")); vals[0] = "はい" if row["Include"] else "いいえ"
+            vals = list(self.folder_tree.item(item, "values")); vals[0] = self.t("はい") if row["Include"] else self.t("いいえ")
             self.folder_tree.item(item, values=vals)
         except (IndexError, ValueError):
             return
@@ -1282,7 +1322,7 @@ class ReviewWindow(Toplevel):
         self.file_tree.delete(*self.file_tree.get_children())
         self.file_page_rows = self._visible_file_rows()
         for i, r in enumerate(self.file_page_rows):
-            self.file_tree.insert("", "end", iid=str(i), values=("はい" if r.get("Include") else "いいえ", r["Name"], r["Extension"], format_bytes(r["SizeBytes"]), r["Modified"], r["PrivacyCandidate"], r["Path"]))
+            self.file_tree.insert("", "end", iid=str(i), values=(self.t("はい") if r.get("Include") else self.t("いいえ"), r["Name"], r["Extension"], format_bytes(r["SizeBytes"]), r["Modified"], self.t(r["PrivacyCandidate"]), r["Path"]))
         self._update_file_hint()
         query = self.file_search_var.get().strip().casefold()
         total = len(self.payload["files"])
@@ -1290,7 +1330,7 @@ class ReviewWindow(Toplevel):
             total = sum(1 for r in self.payload["files"] if query in r["Name"].casefold() or query in r["Path"].casefold() or query in r["Extension"].casefold())
         pages = max(1, (total + FILE_PAGE_SIZE - 1) // FILE_PAGE_SIZE)
         if hasattr(self, "file_page_label"):
-            self.file_page_label.configure(text=f"検索結果 {total:,} / 選択 {sum(1 for r in self.payload['files'] if r.get('Include',False)):,} / {self.file_page+1}/{pages}")
+            self.file_page_label.configure(text=self.t(f"検索結果 {total:,} / 選択 {sum(1 for r in self.payload['files'] if r.get('Include',False)):,} / {self.file_page+1}/{pages}"))
 
     def _reset_file_page(self):
         self.file_page = 0
@@ -1305,7 +1345,7 @@ class ReviewWindow(Toplevel):
             total = len(self.payload["files"])
             shown = len(self.file_page_rows)
             included = sum(1 for r in self.payload["files"] if r.get("Include"))
-            self.file_hint.configure(text=f"表示 {shown:,} 件 / 全体 {total:,} 件 / 現在の選択 {included:,} 件。検索・ページ移動で全件を確認できます。1ページ {FILE_PAGE_SIZE} 件です。")
+            self.file_hint.configure(text=self.t(f"表示 {shown:,} 件 / 全体 {total:,} 件 / 現在の選択 {included:,} 件。検索・ページ移動で全件を確認できます。1ページ {FILE_PAGE_SIZE} 件です。"))
 
     def _toggle_selected_file(self, event=None):
         item = self.file_tree.identify_row(event.y) if event else None
@@ -1334,38 +1374,50 @@ class ReviewWindow(Toplevel):
         warning_total = len(self.payload.get("warnings", [])) + len(self.payload.get("scan_warnings", []))
         self._category_check(f, "warnings", f"スキャン警告を梱包する（{warning_total:,} 件）")
         text = (
-            f"スキップされた項目：{counts['skipped']:,} 件\n"
-            f"アクセス／メタデータ取得エラー：{counts['errors']:,} 件\n"
-            f"ファイル：{counts['files']:,} 件\nフォルダー：{counts['folders']:,} 件\n"
-            f"スキャン状態：{self.payload.get('filesystem_status')}\n\n"
-            "OS・アプリケーションの保護領域、隠し／システムフォルダー、資格情報候補のフォルダー、再解析ポイントは走査しません。"
+            f"{self.t('スキップされた項目：')}{counts['skipped']:,} {self.t('件')}\n"
+            f"{self.t('アクセス／メタデータ取得エラー：')}{counts['errors']:,} {self.t('件')}\n"
+            f"{self.t('ファイル：')}{counts['files']:,} {self.t('件')}\n{self.t('フォルダー：')}{counts['folders']:,} {self.t('件')}\n"
+            f"{self.t('スキャン状態：')}{self.t(self.payload.get('filesystem_status'))}\n\n"
+            f"{self.t('OS・アプリケーションの保護領域、隠し／システムフォルダー、資格情報候補のフォルダー、再解析ポイントは走査しません。')}"
         )
         ttk.Label(f, text=text, justify="left").pack(anchor="nw", fill="x", pady=12)
         ttk.Label(f, text="スキャン警告CSVにはドライブ文字とエラー種別だけを記録します。個別のファイルパスは出力しません。", foreground="#a05a00", wraplength=950).pack(anchor="w")
 
     def _approve(self):
         if not any(v.get() for v in self.categories.values()):
-            messagebox.showwarning("梱包対象なし", "少なくとも1つのカテゴリを選択してください。", parent=self)
+            messagebox.showwarning(self.t("梱包対象なし"), self.t("少なくとも1つのカテゴリを選択してください。"), parent=self)
             return
         selected_file_count = sum(1 for r in self.payload["files"] if r.get("Include")) if self.categories["files"].get() else 0
+        software_count = sum(1 for r in self.payload["system"].get("software", []) if r.get("Include", False)) if self.categories["software"].get() else 0
+        drive_count = len(self.payload["system"].get("drives", [])) if self.categories["drives"].get() else 0
+        folder_count = sum(1 for r in self.payload["folders"] if r.get("Include")) if self.categories["folders"].get() else 0
         summary = [
-            f"PC基本情報：{'含む' if self.categories['system'].get() else '除外'}",
-            f"ソフトウェア：{sum(1 for r in self.payload['system'].get('software',[]) if r.get('Include',False)) if self.categories['software'].get() else 0:,} 件",
-            f"ストレージ：{len(self.payload['system'].get('drives',[])) if self.categories['drives'].get() else 0:,} 件",
-            f"フォルダー：{sum(1 for r in self.payload['folders'] if r.get('Include')) if self.categories['folders'].get() else 0:,} 件",
-            f"ファイルメタデータ：{selected_file_count:,} 件",
-            f"警告：{'含む' if self.categories['warnings'].get() else '除外'}",
-            f"除外集計：{'含む' if self.categories['security'].get() else '除外'}",
+            f"{self.t('PC基本情報')}：{self.t('含む') if self.categories['system'].get() else self.t('除外')}",
+            f"{self.t('ソフトウェア')}：{software_count:,} {self.t('件')}",
+            f"{self.t('ストレージ')}：{drive_count:,} {self.t('件')}",
+            f"{self.t('フォルダー')}：{folder_count:,} {self.t('件')}",
+            f"{self.t('ファイルメタデータ')}：{selected_file_count:,} {self.t('件')}",
+            f"{self.t('警告')}：{self.t('含む') if self.categories['warnings'].get() else self.t('除外')}",
+            f"{self.t('除外集計')}：{self.t('含む') if self.categories['security'].get() else self.t('除外')}",
         ]
-        msg = "以下の内容でAI向けZIPを作成します。\n\n" + "\n".join(summary) + "\n\nZIP内のファイル名・パス・メタデータは閲覧可能です。個人情報が含まれていないことを確認しましたか？"
-        if not messagebox.askyesno("最終確認", msg, parent=self):
+        msg = self.t("以下の内容でAI向けZIPを作成します。") + "\n\n" + "\n".join(summary) + "\n\n" + self.t("ZIP内のファイル名・パス・メタデータは閲覧可能です。個人情報が含まれていないことを確認しましたか？")
+        if not messagebox.askyesno(self.t("最終確認"), msg, parent=self):
             return
         sensitive_included = sum(1 for r in self.payload["files"] if r.get("Include") and r.get("PrivacyCandidate") == "Yes") if self.categories["files"].get() else 0
         if sensitive_included:
-            msg += f"\n\n警告：機微候補として検出されたファイル名が {sensitive_included:,} 件含まれます。必要なものだけを残してください。"
-            if not messagebox.askyesno("機微候補の最終確認", msg + "\n\nこの内容で続行しますか？", parent=self):
+            warning = f"\n\n{self.t('警告：機微候補として検出されたファイル名が')} {sensitive_included:,} {self.t('件')}"
+            if self.language == "zh":
+                warning += "。请仅保留确实需要的项目。"
+            elif self.language == "ko":
+                warning += " 포함됩니다. 필요한 항목만 남겨 주세요."
+            elif self.language == "en":
+                warning += " sensitive-candidate file names are included. Keep only what you need."
+            else:
+                warning += " 含まれます。必要なものだけを残してください。"
+            msg += warning
+            if not messagebox.askyesno(self.t("機微候補の最終確認"), msg + "\n\n" + self.t("この内容で続行しますか？"), parent=self):
                 return
-        self.result = {"categories": {k:v.get() for k,v in self.categories.items()}}
+        self.result = {"categories": {k:v.get() for k,v in self.categories.items()}, "language": self.language}
         result = self.result
         if self.on_confirm(result, self):
             self._close_review()
@@ -1397,27 +1449,50 @@ def discover_fixed_drives_fast():
 
 
 class DriveSelection(Toplevel):
-    def __init__(self, master, drives):
+    def __init__(self, master, drives, language="ja"):
         super().__init__(master)
-        self.title("スキャン対象ドライブの選択")
+        self.master_window = master
+        self.drives = list(drives)
+        self.language = language
+        self.title(tr("スキャン対象ドライブの選択", self.language))
         self.resizable(False, False)
         self.result = None
-        self.vars = {}
-        body = ttk.Frame(self, padding=18); body.pack(fill="both", expand=True)
-        ttk.Label(body, text="スキャンするローカル固定ドライブを選択してください。", font=("Yu Gothic UI", 11, "bold")).pack(anchor="w")
-        ttk.Label(body, text="ローカル固定ドライブのみを表示します。ネットワークドライブやリムーバブルドライブは通常対象外です。USB SSDなどでもWindowsが固定ドライブとして報告する場合は表示されます。", wraplength=460).pack(anchor="w", pady=(5,12))
-        for drive in drives:
-            v = BooleanVar(value=True); self.vars[drive] = v
-            ttk.Checkbutton(body, text=drive, variable=v).pack(anchor="w", pady=2)
-        btns = ttk.Frame(body); btns.pack(fill="x", pady=(16,0))
-        ttk.Button(btns, text="キャンセル", command=self._cancel).pack(side="right", padx=(5,0))
-        ttk.Button(btns, text="この範囲でスキャン", command=self._accept).pack(side="right")
+        self.vars = {drive: BooleanVar(value=True) for drive in self.drives}
+        self._build()
         self.protocol("WM_DELETE_WINDOW", self._cancel)
         self.update_idletasks()
         self.geometry(f"+{master.winfo_rootx()+80}+{master.winfo_rooty()+80}")
         # Deliberately modeless at the native-window level. App disables its
         # scan button while this selector is open; no transient/grab lock.
         self.after(100, self._activate_window)
+
+    def t(self, text):
+        return tr(text, self.language)
+
+    def set_language(self, language):
+        self.language = language
+        self.title(self.t("スキャン対象ドライブの選択"))
+        self._build()
+
+    def _build(self):
+        old_container = getattr(self, "container", None)
+        if old_container is not None:
+            try:
+                old_container.destroy()
+            except Exception:
+                pass
+        body = ttk.Frame(self, padding=18)
+        self.container = body
+        body.pack(fill="both", expand=True)
+        ttk.Label(body, text="スキャンするローカル固定ドライブを選択してください。", font=ui_font(self.language, 11, "bold")).pack(anchor="w")
+        ttk.Label(body, text="ローカル固定ドライブのみを表示します。ネットワークドライブやリムーバブルドライブは通常対象外です。USB SSDなどでもWindowsが固定ドライブとして報告する場合は表示されます。", wraplength=460).pack(anchor="w", pady=(5,12))
+        for drive in self.drives:
+            ttk.Checkbutton(body, text=drive, variable=self.vars[drive]).pack(anchor="w", pady=2)
+        btns = ttk.Frame(body)
+        btns.pack(fill="x", pady=(16,0))
+        ttk.Button(btns, text="キャンセル", command=self._cancel).pack(side="right", padx=(5,0))
+        ttk.Button(btns, text="この範囲でスキャン", command=self._accept).pack(side="right")
+        translate_widget_tree(self.container, self.language)
 
     def _activate_window(self):
         try:
@@ -1439,15 +1514,21 @@ class DriveSelection(Toplevel):
     def _accept(self):
         selected = [drive for drive, var in self.vars.items() if var.get()]
         if not selected:
-            messagebox.showwarning("対象ドライブなし", "少なくとも1つのドライブを選択してください。", parent=self)
+            messagebox.showwarning(self.t("対象ドライブなし"), self.t("少なくとも1つのドライブを選択してください。"), parent=self)
             return
         self.result = selected
         self.destroy()
 
 
+def _responsive_wraplength(viewport_width: int, horizontal_inset: int = 0) -> int:
+    """Return a text wrap width that grows/shrinks with the available viewport."""
+    return max(120, int(viewport_width) - max(0, int(horizontal_inset)))
+
+
 class App:
     def __init__(self, root):
         self.root = root
+        self.language = load_language_preference()
         self.root.title(f"{APP_NAME} v{VERSION}")
         self.root.geometry("900x650")
         self.root.minsize(760, 560)
@@ -1458,12 +1539,132 @@ class App:
         self.selected_roots = []
         self.drive_dialog = None
         self.review_window = None
-        self.status = StringVar(value="スキャン開始前です。")
+        self.status = StringVar(value=tr("スキャン開始前です。", self.language))
         self.progress = StringVar(value="")
         self._build()
+        # One application-wide binding routes wheel input only to the main
+        # canvas under the pointer. Review/drive dialogs keep their own behavior.
+        self.root.bind_all("<MouseWheel>", self._on_main_mousewheel, add="+")
         self.root.protocol("WM_DELETE_WINDOW", self._request_close)
         self.root.after(100, self._activate_main_window)
         self.root.after(200, self._poll)
+
+    def t(self, text):
+        return tr(text, self.language)
+
+    def _update_main_scrollregion(self, _event=None):
+        """Keep the canvas scrollable region synchronized with its content."""
+        try:
+            bounds = self.main_canvas.bbox("all")
+            if bounds:
+                self.main_canvas.configure(scrollregion=bounds)
+        except Exception:
+            pass
+
+    def _register_main_wrap_label(self, widget, horizontal_inset=64):
+        """Register a main-page label whose line wrapping follows the viewport."""
+        if not hasattr(self, "_main_wrap_widgets"):
+            self._main_wrap_widgets = []
+        self._main_wrap_widgets.append((widget, horizontal_inset))
+        try:
+            width = self.main_canvas.winfo_width()
+            if width > 1:
+                widget.configure(wraplength=_responsive_wraplength(width, horizontal_inset))
+        except Exception:
+            pass
+        return widget
+
+    def _apply_main_text_wrapping(self, viewport_width):
+        """Recalculate registered label wrap widths after every horizontal resize."""
+        for widget, horizontal_inset in getattr(self, "_main_wrap_widgets", []):
+            try:
+                if widget.winfo_exists():
+                    widget.configure(
+                        wraplength=_responsive_wraplength(viewport_width, horizontal_inset)
+                    )
+            except Exception:
+                continue
+
+    def _resize_main_scroll_content(self, event):
+        """Resize the embedded frame and reflow text to the new viewport width."""
+        try:
+            self.main_canvas.itemconfigure(self._main_canvas_window, width=event.width)
+            self._apply_main_text_wrapping(event.width)
+            self._update_main_scrollregion()
+        except Exception:
+            pass
+
+    def _on_main_mousewheel(self, event):
+        """Scroll the main page only when the pointer is over its content canvas."""
+        canvas = getattr(self, "main_canvas", None)
+        if canvas is None:
+            return
+        try:
+            if not canvas.winfo_exists():
+                return
+            target = self.root.winfo_containing(event.x_root, event.y_root)
+            if target is None or target.winfo_toplevel() is not self.root:
+                return
+            # Preserve native wheel behavior for the language selector.
+            if target.winfo_class() == "TCombobox":
+                return
+            node = target
+            while node is not None and node is not canvas:
+                node = getattr(node, "master", None)
+            if node is not canvas:
+                return
+            delta = int(getattr(event, "delta", 0) or 0)
+            if not delta:
+                return
+            units = int(-delta / 120)
+            if units == 0:
+                units = -1 if delta > 0 else 1
+            canvas.yview_scroll(units, "units")
+            return "break"
+        except Exception:
+            return
+
+    def _change_language(self, _event=None):
+        selected = LANGUAGE_CODES_BY_NAME.get(self.language_var.get())
+        if not selected or selected == self.language:
+            return
+        self.language = selected
+        try:
+            save_language_preference(self.language)
+        except OSError:
+            pass
+        if self.worker and self.worker.is_alive():
+            self.status.set(self.t("スキャンを開始しています..."))
+        elif self.payload is not None:
+            self.status.set(self.t("スキャンが終了しました。収集結果を確認してください。"))
+        else:
+            self.status.set(self.t("スキャン開始前です。"))
+        self.progress.set("")
+        self._build()
+        if self.worker and self.worker.is_alive():
+            self.start_btn.configure(state="disabled")
+            self.cancel_btn.configure(state="normal")
+        elif self.review_window is not None:
+            try:
+                if self.review_window.winfo_exists():
+                    self.start_btn.configure(state="disabled")
+            except Exception:
+                self.review_window = None
+        if self.review_window is not None:
+            try:
+                if self.review_window.winfo_exists():
+                    self.review_window.set_language(self.language)
+            except Exception:
+                self.review_window = None
+        if self.drive_dialog is not None:
+            try:
+                if self.drive_dialog.winfo_exists():
+                    # Rebuilding the main window must not re-enable the scan
+                    # action while the modeless drive selector is still open.
+                    self.start_btn.configure(state="disabled")
+                    self.drive_dialog.set_language(self.language)
+            except Exception:
+                self.drive_dialog = None
 
     def _activate_main_window(self):
         try:
@@ -1486,10 +1687,10 @@ class App:
 
     def _request_close(self):
         if self.worker and self.worker.is_alive():
-            if not messagebox.askyesno("終了確認", "スキャン中です。停止してアプリを終了しますか？", parent=self.root):
+            if not messagebox.askyesno(self.t("終了確認"), self.t("スキャン中です。停止してアプリを終了しますか？"), parent=self.root):
                 return
             self.cancel_event.set()
-            self.status.set("スキャンを停止して終了しています...")
+            self.status.set(self.t("スキャンを停止して終了しています..."))
             self.root.after(200, self._finish_close_when_stopped)
         else:
             self.root.destroy()
@@ -1501,10 +1702,54 @@ class App:
             self.root.destroy()
 
     def _build(self):
-        outer = ttk.Frame(self.root, padding=20)
-        outer.pack(fill="both", expand=True)
-        ttk.Label(outer, text="PC Context Builder", font=("Yu Gothic UI", 24, "bold")).pack(anchor="w")
-        ttk.Label(outer, text="Windows PCの環境情報を収集し、確認後にAIアシスタント向けコンテキストパッケージを作成します。", font=("Yu Gothic UI", 10)).pack(anchor="w", pady=(4,14))
+        old_container = getattr(self, "container", None)
+        if old_container is not None:
+            try:
+                old_container.destroy()
+            except Exception:
+                pass
+        self.container = ttk.Frame(self.root)
+        self.container.pack(fill="both", expand=True)
+        self.container.rowconfigure(0, weight=1)
+        self.container.columnconfigure(0, weight=1)
+
+        self.main_canvas = Canvas(self.container, highlightthickness=0, borderwidth=0)
+        self.main_canvas.grid(row=0, column=0, sticky="nsew")
+        self.main_scrollbar = ttk.Scrollbar(
+            self.container, orient="vertical", command=self.main_canvas.yview
+        )
+        self.main_scrollbar.grid(row=0, column=1, sticky="ns")
+        self.main_canvas.configure(yscrollcommand=self.main_scrollbar.set)
+
+        self.main_scroll_content = ttk.Frame(self.main_canvas, padding=20)
+        self._main_wrap_widgets = []
+        self._main_canvas_window = self.main_canvas.create_window(
+            (0, 0), window=self.main_scroll_content, anchor="nw"
+        )
+        self.main_canvas.bind("<Configure>", self._resize_main_scroll_content)
+        self.main_scroll_content.bind("<Configure>", self._update_main_scrollregion)
+        outer = self.main_scroll_content
+        header = ttk.Frame(outer)
+        header.pack(fill="x")
+        ttk.Label(header, text="PC Context Builder", font=ui_font(self.language, 24, "bold")).pack(side="left", anchor="w")
+        language_bar = ttk.Frame(header)
+        language_bar.pack(side="right", anchor="e", padx=(8,0), pady=4)
+        ttk.Label(language_bar, text="言語 / Language").pack(side="left", padx=(0,6))
+        self.language_var = StringVar(value=LANGUAGE_NAMES[self.language])
+        self.language_combo = ttk.Combobox(
+            language_bar, textvariable=self.language_var,
+            values=[LANGUAGE_NAMES[code] for code in LANGUAGE_ORDER],
+            state="readonly", width=12
+        )
+        self.language_combo.pack(side="left")
+        self.language_combo.bind("<<ComboboxSelected>>", self._change_language)
+        intro = ttk.Label(
+            outer,
+            text="Windows PCの環境情報を収集し、確認後にAIアシスタント向けコンテキストパッケージを作成します。",
+            font=ui_font(self.language, 10), wraplength=1, justify="left"
+        )
+        self._register_main_wrap_label(intro, horizontal_inset=48)
+        intro.pack(anchor="w", fill="x", pady=(4,14))
         tags = ttk.Frame(outer); tags.pack(anchor="w", pady=(0,14))
         ttk.Label(tags, text="ローカル処理", relief="solid", padding=(8,4)).pack(side="left", padx=(0,6))
         ttk.Label(tags, text="読み取り専用", relief="solid", padding=(8,4)).pack(side="left", padx=6)
@@ -1519,23 +1764,50 @@ class App:
             "保護領域・資格情報候補・隠しフォルダー・リンク先は除外",
         ]
         for line in details:
-            ttk.Label(card, text="• " + line).pack(anchor="w", pady=2)
+            # Translate the source string before adding the bullet prefix; otherwise
+            # exact-key lookup cannot match the prefixed Japanese text.
+            item = ttk.Label(card, text="• " + self.t(line), wraplength=1, justify="left")
+            self._register_main_wrap_label(item, horizontal_inset=88)
+            item.pack(anchor="w", fill="x", pady=2)
         warning = ttk.LabelFrame(outer, text="プライバシー保護", padding=14)
         warning.pack(fill="x", pady=8)
-        ttk.Label(warning, text="スキャンとZIP生成はPC内で実行します。自動アップロードやネットワーク送信は行いません。ファイル名・パスも個人情報になり得るため、収集結果を確認してから梱包してください。", wraplength=820, justify="left").pack(anchor="w")
+        privacy_text = ttk.Label(
+            warning,
+            text="スキャンとZIP生成はPC内で実行します。自動アップロードやネットワーク送信は行いません。ファイル名・パスも個人情報になり得るため、収集結果を確認してから梱包してください。",
+            wraplength=1, justify="left"
+        )
+        self._register_main_wrap_label(privacy_text, horizontal_inset=88)
+        privacy_text.pack(anchor="w", fill="x")
         actions = ttk.Frame(outer); actions.pack(fill="x", pady=(16,8))
         self.start_btn = ttk.Button(actions, text="PC全体の概要をスキャン", command=self.start_scan)
         self.start_btn.pack(side="left")
         self.cancel_btn = ttk.Button(actions, text="スキャンを停止", command=self.cancel_scan, state="disabled")
         self.cancel_btn.pack(side="left", padx=8)
-        ttk.Label(outer, textvariable=self.status, font=("Yu Gothic UI", 10, "bold")).pack(anchor="w", pady=(8,2))
-        ttk.Label(outer, textvariable=self.progress, foreground="#555").pack(anchor="w")
+        status_label = ttk.Label(
+            outer, textvariable=self.status,
+            font=ui_font(self.language, 10, "bold"), wraplength=1, justify="left"
+        )
+        self._register_main_wrap_label(status_label, horizontal_inset=48)
+        status_label.pack(anchor="w", fill="x", pady=(8,2))
+        progress_label = ttk.Label(
+            outer, textvariable=self.progress, foreground="#555",
+            wraplength=1, justify="left"
+        )
+        self._register_main_wrap_label(progress_label, horizontal_inset=48)
+        progress_label.pack(anchor="w", fill="x")
         self.pb = ttk.Progressbar(outer, mode="indeterminate")
         self.pb.pack(fill="x", pady=8)
         note = ttk.LabelFrame(outer, text="重要な注意", padding=12)
         note.pack(fill="x", pady=8)
-        ttk.Label(note, text="• スキャン前に許可を求め、結果一覧の確認と最終承認が終わるまでZIPを作成しません。\n• スキャンは最大10分、最大150,000ファイル・30,000フォルダーで上限を設けます。上限に達した場合は部分スキャンとして記録します。\n• 生成ZIPは通常のZIPです。暗号化されていないため、共有する前に内容を確認してください。", justify="left").pack(anchor="w")
-        ttk.Label(outer, text=f"v{VERSION} • Python標準ライブラリのみ • Windows 11 x64", foreground="#666").pack(anchor="e", pady=(10,0))
+        note_text = ttk.Label(
+            note,
+            text="• スキャン前に許可を求め、結果一覧の確認と最終承認が終わるまでZIPを作成しません。\n• スキャンは最大10分、最大150,000ファイル・30,000フォルダーで上限を設けます。上限に達した場合は部分スキャンとして記録します。\n• 生成ZIPは通常のZIPです。暗号化されていないため、共有する前に内容を確認してください。",
+            wraplength=1, justify="left"
+        )
+        self._register_main_wrap_label(note_text, horizontal_inset=80)
+        note_text.pack(anchor="w", fill="x")
+        ttk.Label(outer, text=f"v{VERSION} • {self.t('Python標準ライブラリのみ')} • Windows 11 x64", foreground="#666").pack(anchor="e", pady=(10,0))
+        translate_widget_tree(self.container, self.language)
 
     def start_scan(self):
         if self.review_window is not None:
@@ -1547,20 +1819,20 @@ class App:
             except Exception:
                 self.review_window = None
         if not is_windows():
-            messagebox.showerror("Windows専用", "このアプリはWindows 11上で実行してください。", parent=self.root)
+            messagebox.showerror(self.t("Windows専用"), self.t("このアプリはWindows 11上で実行してください。"), parent=self.root)
             return
         if sys.version_info[:2] != (3,14) or sys.maxsize <= 2**32:
-            messagebox.showerror("実行環境が違います", f"Python 3.14 x64が必要です。\n現在：{sys.version.split()[0]} / {'64-bit' if sys.maxsize>2**32 else '32-bit'}", parent=self.root)
+            messagebox.showerror(self.t("実行環境が違います"), self.t("Python 3.14 x64が必要です。") + f"\n{self.t('現在：')}{sys.version.split()[0]} / {'64-bit' if sys.maxsize>2**32 else '32-bit'}", parent=self.root)
             return
-        if not messagebox.askyesno("スキャン開始の確認", "ローカルPCのシステム情報・ソフトウェア情報・ドライブ情報・ファイルのメタデータを読み取り専用で調査します。\n\nファイルの中身、パスワード、Cookie、APIキーは読み取りません。\n\n続けて対象ドライブを選択します。開始しますか？", parent=self.root):
+        if not messagebox.askyesno(self.t("スキャン開始の確認"), self.t("ローカルPCのシステム情報・ソフトウェア情報・ドライブ情報・ファイルのメタデータを読み取り専用で調査します。\n\nファイルの中身、パスワード、Cookie、APIキーは読み取りません。\n\n続けて対象ドライブを選択します。開始しますか？"), parent=self.root):
             return
         drives = discover_fixed_drives_fast()
         if not drives:
-            messagebox.showerror("ドライブを検出できません", "ローカル固定ドライブを取得できませんでした。", parent=self.root)
+            messagebox.showerror(self.t("ドライブを検出できません"), self.t("ローカル固定ドライブを取得できませんでした。"), parent=self.root)
             return
         # Prevent a second selector or duplicate scan without using a Tk grab.
         self.start_btn.configure(state="disabled")
-        chooser = DriveSelection(self.root, drives)
+        chooser = DriveSelection(self.root, drives, self.language)
         self.drive_dialog = chooser
         self.root.wait_window(chooser)
         self.drive_dialog = None
@@ -1575,7 +1847,7 @@ class App:
         self.selected_roots = chooser.result
         self.cancel_event.clear()
         self.cancel_btn.configure(state="normal")
-        self.status.set("スキャンを開始しています...")
+        self.status.set(self.t("スキャンを開始しています..."))
         self.progress.set("")
         self.pb.start(10)
         self.worker = threading.Thread(target=self._scan_worker, daemon=True)
@@ -1591,7 +1863,7 @@ class App:
 
     def cancel_scan(self):
         self.cancel_event.set()
-        self.status.set("停止要求を送信しました。現在の項目を安全に終了しています...")
+        self.status.set(self.t("停止要求を送信しました。現在の項目を安全に終了しています..."))
         self.cancel_btn.configure(state="disabled")
 
     def _poll(self):
@@ -1599,58 +1871,129 @@ class App:
             while True:
                 kind, data = self.q.get_nowait()
                 if kind == "status":
-                    self.status.set(data)
+                    self.status.set(self.t(data))
                 elif kind == "progress":
-                    self.progress.set(f"ファイル {data['files']:,} / フォルダー {data['folders']:,} / 除外 {data['skipped']:,} / エラー {data['errors']:,} — {data['current']}")
+                    self.progress.set(self.t(f"ファイル {data['files']:,} / フォルダー {data['folders']:,} / 除外 {data['skipped']:,} / エラー {data['errors']:,} — {data['current']}"))
                 elif kind == "cancelled":
                     self.pb.stop()
                     self.start_btn.configure(state="normal")
                     self.cancel_btn.configure(state="disabled")
-                    self.status.set("スキャンをキャンセルしました。ZIPは作成していません。")
+                    self.status.set(self.t("スキャンをキャンセルしました。ZIPは作成していません。"))
                     self.progress.set("")
                 elif kind == "done":
                     self.payload = data
                     self.pb.stop()
                     self.start_btn.configure(state="normal")
                     self.cancel_btn.configure(state="disabled")
-                    self.status.set("スキャンが終了しました。収集結果を確認してください。")
-                    self.progress.set(f"ファイル {len(data['files']):,} 件 / フォルダー {len(data['folders']):,} 件 / 状態 {data['filesystem_status']}")
+                    self.status.set(self.t("スキャンが終了しました。収集結果を確認してください。"))
+                    self.progress.set(self.t(f"ファイル {len(data['files']):,} 件 / フォルダー {len(data['folders']):,} 件 / 状態 {self.t(data['filesystem_status'])}"))
                     self.start_btn.configure(state="disabled")
-                    self.review_window = ReviewWindow(self.root, self.payload, self.create_zip)
+                    self.review_window = ReviewWindow(self.root, self.payload, self.create_zip, self.language)
                     self.review_window.set_on_close(self._on_review_closed)
                 elif kind == "error":
                     self.pb.stop()
                     self.start_btn.configure(state="normal")
                     self.cancel_btn.configure(state="disabled")
-                    self.status.set("スキャンに失敗しました。")
-                    messagebox.showerror("スキャンエラー", data[-5000:], parent=self.root)
+                    self.status.set(self.t("スキャンに失敗しました。"))
+                    messagebox.showerror(self.t("スキャンエラー"), data[-5000:], parent=self.root)
         except queue.Empty:
             pass
         self.root.after(200, self._poll)
 
     def create_zip(self, choices, review_window=None):
         dialog_parent = review_window or self.root
-        output = filedialog.askdirectory(title="AI向けZIPの出力先を選択してください", mustexist=True, parent=dialog_parent)
+        output = filedialog.askdirectory(title=self.t("AI向けZIPの出力先を選択してください"), mustexist=True, parent=dialog_parent)
         if not output:
-            messagebox.showinfo("キャンセル", "出力先が選択されなかったため、ZIPは作成していません。レビュー画面に戻ります。", parent=dialog_parent)
+            messagebox.showinfo(self.t("キャンセル"), self.t("出力先が選択されなかったため、ZIPは作成していません。レビュー画面に戻ります。"), parent=dialog_parent)
             return False
         try:
-            self.status.set("AI向けZIPを作成し、整合性を検査しています...")
+            self.status.set(self.t("AI向けZIPを作成し、整合性を検査しています..."))
             self.root.update_idletasks()
-            path, counts, size = build_package(self.payload, choices, output)
-            self.status.set("ZIPの作成と整合性検査が完了しました。")
+            path, counts, size = build_package(self.payload, choices, output, self.language)
+            self.status.set(self.t("ZIPの作成と整合性検査が完了しました。"))
             self.progress.set(path)
-            messagebox.showinfo("作成完了", f"AI向けZIPを作成しました。\n\n保存先：{path}\nサイズ：{format_bytes(size)}\n\n収録件数：\n" + "\n".join(f"{k}: {v:,}" for k,v in counts.items()) + "\n\nZIPの中身を確認してからAIアシスタントに共有してください。", parent=dialog_parent)
+            count_labels = {
+                "system": "PC基本情報", "software": "ソフトウェア", "drives": "ストレージ",
+                "folders": "フォルダー", "files": "ファイルメタデータ",
+                "warnings": "警告", "security": "除外集計",
+            }
+            count_lines = [
+                f"{self.t(count_labels.get(key, key))}: {value:,}"
+                for key, value in counts.items()
+            ]
+            success_message = (
+                f"{self.t('AI向けZIPを作成しました。')}\n\n"
+                f"{self.t('保存先：')}{path}\n"
+                f"{self.t('サイズ：')}{format_bytes(size)}\n\n"
+                f"{self.t('収録件数：')}\n" + "\n".join(count_lines) +
+                f"\n\n{self.t('ZIPの中身を確認してからAIアシスタントに共有してください。')}"
+            )
+            messagebox.showinfo(self.t("作成完了"), success_message, parent=dialog_parent)
             return True
         except Exception as exc:
-            self.status.set("ZIPの作成に失敗しました。")
-            messagebox.showerror("ZIP作成エラー", f"{type(exc).__name__}: {exc}", parent=dialog_parent)
+            self.status.set(self.t("ZIPの作成に失敗しました。"))
+            messagebox.showerror(self.t("ZIP作成エラー"), f"{type(exc).__name__}: {exc}", parent=dialog_parent)
             return False
 
 
 def self_test():
     import tempfile
     import io
+
+    assert tr("PC概要", "zh") == "电脑概况"
+    assert tr("PC概要", "ja") == "PC概要"
+    assert tr("PC概要", "ko") == "PC 개요"
+    assert tr("PC概要", "en") == "PC overview"
+    # UI localization regressions: every scan-scope bullet and overview row label
+    # must resolve through the selected locale, not remain Japanese source copy.
+    scan_scope_keys = (
+        "Windows・CPU・メモリ・GPU・ディスプレイ情報",
+        "インストール済みソフトウェア・Python環境・ブラウザー情報",
+        "ローカル固定ドライブの容量情報",
+        "ファイル名・パス・サイズ・更新日時（内容は読まない）",
+        "保護領域・資格情報候補・隠しフォルダー・リンク先は除外",
+    )
+    scan_scope_zh = (
+        "Windows、CPU、内存、GPU 和显示器信息",
+        "已安装软件、Python 环境和浏览器信息",
+        "本地固定驱动器容量信息",
+        "文件名、路径、大小和修改时间（不读取文件内容）",
+        "排除受保护区域、可能包含凭据的目录、隐藏文件夹和链接目标",
+    )
+    assert tuple(tr(key, "zh") for key in scan_scope_keys) == scan_scope_zh
+    overview_label_zh = {
+        "メーカー・モデル": "制造商／型号", "マザーボード": "主板",
+        "メモリ": "内存", "ディスプレイ": "显示器", "ブラウザー": "浏览器",
+        "項目": "项目", "取得値": "获取值",
+    }
+    assert all(tr(key, "zh") == value for key, value in overview_label_zh.items())
+    assert tr("Collection method: local read-only inventory", "zh") == "收集方式：本地只读清单"
+    assert tr("- PC profile: included (1 records)", "en") == "- PC profile: included (1 records)"
+    assert tr("- PC profile was not selected for inclusion.", "zh") == "- 未选择包含电脑基本信息。"
+    assert tr("- PC profile was not selected for inclusion.", "ja") == "- PC基本情報は収録対象に選択されていません。"
+    assert tr("- PC profile was not selected for inclusion.", "ko") == "- PC 프로필은 포함하도록 선택되지 않았습니다."
+    assert tr("- PC profile was not selected for inclusion.", "en") == "- PC profile was not selected for inclusion."
+    assert tr("Python標準ライブラリのみ", "zh") == "仅使用 Python 标准库"
+    assert tr("Python標準ライブラリのみ", "ja") == "Python標準ライブラリのみ"
+    assert tr("Python標準ライブラリのみ", "ko") == "Python 표준 라이브러리만 사용"
+    assert tr("Python標準ライブラリのみ", "en") == "Python standard library only"
+
+    # A syntactically valid but non-object settings.json must not crash startup.
+    import i18n as i18n_module
+    original_settings_path = i18n_module._settings_path
+    try:
+        with tempfile.TemporaryDirectory() as settings_dir:
+            test_settings_path = Path(settings_dir) / "settings.json"
+            i18n_module._settings_path = lambda: test_settings_path
+            for malformed_shape in ("[]", "null", "42", '"ja"'):
+                test_settings_path.write_text(malformed_shape, encoding="utf-8")
+                assert load_language_preference() == i18n_module.detect_system_language()
+            test_settings_path.write_text('{"language":"ja"}', encoding="utf-8")
+            assert load_language_preference() == "ja"
+            test_settings_path.write_text('{"language":"unsupported"}', encoding="utf-8")
+            assert load_language_preference() == i18n_module.detect_system_language()
+    finally:
+        i18n_module._settings_path = original_settings_path
 
     assert is_sensitive_name(".env")
     assert is_sensitive_name("my_api_key.txt")
@@ -1832,9 +2175,14 @@ def self_test():
                 "hardware": {"manufacturer":"TestVendor","model":"TestModel","cpu":[],"gpu":[],"display_resolutions":[]},
                 "software": [
                     {"Name":"Selected App","Version":"1.0","Publisher":"Example","InstallLocation":"%USERPROFILE%\\Apps\\Selected","Include":True},
+                    {"Name":"Selected App","Version":"0.9","Publisher":"Example","InstallLocation":"C:\\Apps\\Older","Include":False},
                     {"Name":"Excluded App","Version":"2.0","Publisher":"Example","InstallLocation":"C:\\Apps\\Excluded","Include":False},
                 ],
-                "browser_summary": [{"Name":"Selected App","Version":"1.0"},{"Name":"Excluded App","Version":"2.0"}],
+                "browser_summary": [
+                    {"Name":"Selected App","Version":"1.0","Publisher":"Example"},
+                    {"Name":"Selected App","Version":"0.9","Publisher":"Example"},
+                    {"Name":"Excluded App","Version":"2.0","Publisher":"Example"},
+                ],
                 "python_environments": [],
                 "drives": [{"Drive":"C:","VolumeName":"Test","FileSystem":"NTFS","SizeBytes":1000,"FreeBytes":500}],
             },
@@ -1859,12 +2207,46 @@ def self_test():
             pack_readme = z.read("PC_Context_Pack/00_README_FOR_AI.md").decode("utf-8-sig")
             assert "# PC Context Pack" in pack_readme
             assert "How an AI assistant should use this package" in pack_readme
-            assert "ChatGPT" not in pack_readme
-            assert "PC_Context_Pack/00_README_FOR_AI.md" in names
-            assert "PC_Context_Pack/04_FILE_INDEX/files.csv" in names
-            assert counts["files"] == 1
+        assert "ChatGPT" not in pack_readme
+        assert "PC_Context_Pack/00_README_FOR_AI.md" in names
+        assert "PC_Context_Pack/04_FILE_INDEX/files.csv" in names
+        expected_readme_headings = {
+            "zh": ("# PC 上下文资料包", "## 电脑概览", "架构版本："),
+            "ja": ("# PC コンテキストパック", "## PC概要", "スキーマバージョン："),
+            "ko": ("# PC 컨텍스트 패키지", "## PC 개요", "스키마 버전:"),
+            "en": ("# PC Context Pack", "## PC overview", "Schema version:"),
+        }
+        for language, expected in expected_readme_headings.items():
+            localized_path, _, _ = build_package(fake, choices, td, language)
+            with zipfile.ZipFile(localized_path) as localized_zip:
+                localized_readme = localized_zip.read("PC_Context_Pack/00_README_FOR_AI.md").decode("utf-8-sig")
+                localized_manifest = json.loads(localized_zip.read("PC_Context_Pack/06_SCAN_REPORT/manifest.json").decode("utf-8-sig"))
+                assert all(value in localized_readme for value in expected), (language, expected)
+                assert localized_manifest["ui_language"] == language
+                localized_names = set(localized_zip.namelist())
+                assert "PC_Context_Pack/00_README_FOR_AI.md" in localized_names
+                assert "PC_Context_Pack/04_FILE_INDEX/files.csv" in localized_names
+
+            # Exercise the full ZIP/README path when the PC profile category is
+            # omitted, not only the translation helper in isolation.
+            no_profile_choices = {"categories": dict(choices["categories"], system=False)}
+            no_profile_path, _, _ = build_package(fake, no_profile_choices, td, language)
+            with zipfile.ZipFile(no_profile_path) as no_profile_zip:
+                no_profile_readme = no_profile_zip.read(
+                    "PC_Context_Pack/00_README_FOR_AI.md"
+                ).decode("utf-8-sig")
+            expected_no_profile_line = {
+                "zh": "- 未选择包含电脑基本信息。",
+                "ja": "- PC基本情報は収録対象に選択されていません。",
+                "ko": "- PC 프로필은 포함하도록 선택되지 않았습니다.",
+                "en": "- PC profile was not selected for inclusion.",
+            }[language]
+            assert expected_no_profile_line in no_profile_readme, (language, expected_no_profile_line)
+        assert counts["files"] == 1
+        with zipfile.ZipFile(path) as z:
             system_text = z.read("PC_Context_Pack/01_PC_PROFILE/system_profile.json").decode("utf-8-sig")
             assert "Selected App" in system_text and "Excluded App" not in system_text
+            assert '"Version": "1.0"' in system_text and '"Version": "0.9"' not in system_text
             files_text = z.read("PC_Context_Pack/04_FILE_INDEX/files.csv").decode("utf-8-sig")
             assert "normal.txt" in files_text and ".env" not in files_text and "my_api_key.txt" not in files_text
             warnings_text = z.read("PC_Context_Pack/06_SCAN_REPORT/warnings.csv").decode("utf-8-sig")
@@ -1898,8 +2280,50 @@ def self_test():
         finally:
             globals()["run_powershell_json"] = original_runner
 
+    # Product-name consistency guard: GUI and CMD read the same plain-text config.
+    name_file = Path(__file__).with_name("APP_NAME.txt")
+    assert name_file.read_text(encoding="utf-8-sig").strip() == APP_NAME == "PC Context Builder"
+    launcher_source = Path(__file__).with_name("start.bat").read_text(encoding="utf-8")
+    assert 'set /p APP_NAME=<"%~dp0APP_NAME.txt"' in launcher_source
+    assert "Starting %APP_NAME%..." in launcher_source
+    assert "%APP_NAME% exited with an error." in launcher_source
+    assert "for /f" not in launcher_source
+    assert "AI PC Intelligence" not in launcher_source
+
     # Regression guard for Tkinter geometry-manager parent consistency.
     source = Path(__file__).read_text(encoding="utf-8")
+    overview_source = inspect.getsource(ReviewWindow._build_overview_tab)
+    assert "values=(self.t(label), value)" in overview_source
+    app_build_source = inspect.getsource(App._build)
+    assert '"• " + self.t(line)' in app_build_source
+    assert "self.main_canvas = Canvas(self.container" in app_build_source
+    assert "self.main_scrollbar = ttk.Scrollbar(" in app_build_source
+    assert "yscrollcommand=self.main_scrollbar.set" in app_build_source
+    assert "create_window(" in app_build_source and "window=self.main_scroll_content" in app_build_source
+    app_mousewheel_source = inspect.getsource(App._on_main_mousewheel)
+    assert "winfo_containing(event.x_root, event.y_root)" in app_mousewheel_source
+    assert 'winfo_class() == "TCombobox"' in app_mousewheel_source
+    assert 'canvas.yview_scroll(units, "units")' in app_mousewheel_source
+    wrap_helper_source = inspect.getsource(_responsive_wraplength)
+    assert "int(viewport_width)" in wrap_helper_source
+    assert "horizontal_inset" in wrap_helper_source
+    assert _responsive_wraplength(1000, 80) >= _responsive_wraplength(800, 80)
+    assert _responsive_wraplength(600, 80) <= _responsive_wraplength(800, 80)
+    app_resize_source = inspect.getsource(App._resize_main_scroll_content)
+    assert "self._apply_main_text_wrapping(event.width)" in app_resize_source
+    assert "self.main_canvas.itemconfigure(self._main_canvas_window, width=event.width)" in app_resize_source
+    wrap_register_source = inspect.getsource(App._register_main_wrap_label)
+    assert "self._main_wrap_widgets.append((widget, horizontal_inset))" in wrap_register_source
+    assert "_responsive_wraplength(width, horizontal_inset)" in wrap_register_source
+    assert "wraplength=820" not in app_build_source
+    assert "wraplength=1" in app_build_source
+    assert "self._register_main_wrap_label(" in app_build_source
+    app_init_source = inspect.getsource(App.__init__)
+    assert 'bind_all("<MouseWheel>", self._on_main_mousewheel, add="+")' in app_init_source
+    change_language_source = inspect.getsource(App._change_language)
+    drive_dialog_language_block = change_language_source.split("if self.drive_dialog is not None:", 1)[1]
+    assert 'self.start_btn.configure(state="disabled")' in drive_dialog_language_block
+    assert 'self.drive_dialog.set_language(self.language)' in drive_dialog_language_block
     files_tab = source.split("    def _build_files_tab(self):", 1)[1].split("    def _visible_folder_rows(self):", 1)[0]
     assert "file_table = ttk.Frame(f)" in files_tab
     assert "self.file_tree = ttk.Treeview(file_table," in files_tab
@@ -1917,7 +2341,37 @@ def self_test():
     assert "GlobalMemoryStatusEx" in memory_source
     assert "motherboard_manufacturer" in inspect.getsource(normalize_system_result)
 
+    # Windows HiDPI regression guard: DPI awareness must be requested before Tk().
+    dpi_helper_source = inspect.getsource(_enable_windows_dpi_awareness)
+    assert "SetProcessDpiAwareness" in dpi_helper_source
+    assert "PROCESS_SYSTEM_DPI_AWARE = 1" in dpi_helper_source
+    main_source = inspect.getsource(main)
+    assert main_source.index("_enable_windows_dpi_awareness()") < main_source.index("root = Tk()")
+    if is_windows():
+        _enable_windows_dpi_awareness()
+        awareness = ctypes.c_int()
+        ctypes.OleDLL("shcore").GetProcessDpiAwareness(None, ctypes.byref(awareness))
+        assert awareness.value != 0, "Windows process is still DPI-unaware"
+
     print("SELF-TEST PASS")
+
+
+def _enable_windows_dpi_awareness() -> bool:
+    """Request system DPI awareness before creating the first Tk window.
+
+    This follows CPython IDLE's Windows HiDPI workaround. Windows otherwise
+    bitmap-stretches DPI-unaware Tk windows on scaled displays, making text soft.
+    If a manifest or host process already selected an awareness mode, Windows
+    rejects a second process-wide change; keep the existing mode and continue.
+    """
+    if not is_windows():
+        return False
+    try:
+        PROCESS_SYSTEM_DPI_AWARE = 1
+        ctypes.OleDLL("shcore").SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+        return True
+    except (ImportError, AttributeError, OSError):
+        return False
 
 
 def main():
@@ -1928,8 +2382,10 @@ def main():
         self_test()
         return
     if not is_windows():
-        print("Windows 11 only")
+        print(tr("Windows 11 only", load_language_preference()))
         return
+    # Must run before Tk() creates any window handles.
+    _enable_windows_dpi_awareness()
     root = Tk()
     try:
         style = ttk.Style(root)
