@@ -1,9 +1,18 @@
 # GitHub repository setup
 
-This project is stored in a private repository.
+The product is being renamed to **PC Context Builder**. The intended repository name is `PC-Context-Builder`; the GitHub repository itself has not yet been renamed.
 
-- Keep the repository private unless the project owner explicitly decides otherwise.
-- Do not commit any real AI_PC_Knowledge_Pack_*.zip export.
+- Keep the repository private until the complete history, CI logs, and release assets have been audited for sensitive information.
+- Do not commit any real `PC_Context_Pack_*.zip` or legacy `AI_PC_Knowledge_Pack_*.zip` export.
 - Do not commit screenshots, local scan reports, user logs, credentials, tokens, or personal file lists.
 - The project has no license file because the project owner has not selected a license.
 - Use the Windows Actions workflow for repeatable syntax and built-in self-test checks. CI does not replace testing on the target PC.
+
+After the GitHub repository is renamed to `PC-Context-Builder`, update existing local clones with:
+
+```powershell
+git remote set-url origin https://github.com/yanchengz685-bot/PC-Context-Builder.git
+git remote -v
+```
+
+GitHub documents automatic redirects for most repository links and Git operations after a rename. Existing local clones should still be updated to the new remote URL.
