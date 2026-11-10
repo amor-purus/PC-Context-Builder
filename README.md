@@ -1,4 +1,4 @@
-# AI PC Intelligence v1.0.7
+# AI PC Intelligence v1.0.8
 
 一个面向 Windows 11 的本地 PC 环境采集工具。它读取系统与硬件信息、软件注册信息，以及用户选择范围内的文件/文件夹**元数据**；先展示完整结果供用户审核，只有经过明确选择和最终确认后才生成 ChatGPT 可读取的 ZIP。
 
@@ -43,7 +43,7 @@ GitHub Actions 在 Windows runner 上执行语法编译和内置 self-test。CI 
 
 ## 版本与验证状态
 
-详见 [`CHANGELOG.txt`](CHANGELOG.txt) 和 [`VERIFICATION_STATUS.txt`](VERIFICATION_STATUS.txt)。v1.0.7 已通过代码级/合成测试，并在用户 Windows 11 实机完成 GUI 操作、硬件信息采集、真实驱动器扫描与 ZIP 生成。该次扫描有 3 条 C: `PermissionError`，状态为 `partial_errors`；详情见验证记录。
+详见 [`CHANGELOG.txt`](CHANGELOG.txt) 和 [`VERIFICATION_STATUS.txt`](VERIFICATION_STATUS.txt)。v1.0.8 将 Phase 1 安全加固纳入正式版本：CSV 文本公式注入防护、敏感目录多级路径匹配，以及常见云同步目录/同步根目录排除。Phase 1 代码在 2026-11-10 的 Windows 11 实机验证中通过了 `check_tool.bat`（`SELF-TEST PASS`）、主窗口启动、Review 窗口打开/关闭和 C: 盘扫描；该次安全加固验证未生成 PC Knowledge Pack。此前 v1.0.7 的完整扫描/ZIP 基线记录仍保留在验证档案中，其中记录了 3 条 C: `PermissionError`（`partial_errors`），不要将其与本次扫描结果混为一谈。
 
 ## 仓库内容范围
 
