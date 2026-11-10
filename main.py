@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AI PC Intelligence v1.0.7 - Local, read-only Windows PC inventory packager.
+"""AI PC Intelligence v1.0.8 - Local, read-only Windows PC inventory packager.
 
 No third-party Python packages are required. File contents are never opened or copied.
 """
@@ -27,7 +27,7 @@ from tkinter import Tk, Toplevel, StringVar, BooleanVar, filedialog, messagebox
 from tkinter import ttk
 
 APP_NAME = "AI PC Intelligence"
-VERSION = "1.0.7"
+VERSION = "1.0.8"
 MAX_FILES = 150_000
 MAX_FOLDERS = 30_000
 MAX_SCAN_SECONDS = 600
