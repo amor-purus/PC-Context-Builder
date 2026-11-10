@@ -1978,6 +1978,23 @@ def self_test():
     assert tr("Python標準ライブラリのみ", "ko") == "Python 표준 라이브러리만 사용"
     assert tr("Python標準ライブラリのみ", "en") == "Python standard library only"
 
+    # A syntactically valid but non-object settings.json must not crash startup.
+    import i18n as i18n_module
+    original_settings_path = i18n_module._settings_path
+    try:
+        with tempfile.TemporaryDirectory() as settings_dir:
+            test_settings_path = Path(settings_dir) / "settings.json"
+            i18n_module._settings_path = lambda: test_settings_path
+            for malformed_shape in ("[]", "null", "42", '"ja"'):
+                test_settings_path.write_text(malformed_shape, encoding="utf-8")
+                assert load_language_preference() == i18n_module.detect_system_language()
+            test_settings_path.write_text('{"language":"ja"}', encoding="utf-8")
+            assert load_language_preference() == "ja"
+            test_settings_path.write_text('{"language":"unsupported"}', encoding="utf-8")
+            assert load_language_preference() == i18n_module.detect_system_language()
+    finally:
+        i18n_module._settings_path = original_settings_path
+
     assert is_sensitive_name(".env")
     assert is_sensitive_name("my_api_key.txt")
     assert is_sensitive_name("adbkey", r"C:\Users\Example\.android\adbkey")
