@@ -1,3 +1,10 @@
+## Language-preference robustness follow-up — 2026-11-11
+- `load_language_preference()` previously called `.get()` on any parsed JSON value. A manually edited or corrupted but syntactically valid settings file containing a list, number, string, or null could raise `AttributeError` and prevent app startup.
+- The loader now accepts only a JSON object containing a supported language code; other JSON shapes and unsupported codes fall back to the detected system locale.
+- Added isolated temporary-file self-tests for list, null, number, string, a supported language object, and an unsupported language code. The user's actual settings file is not read or changed by this test.
+- Code commits: `9633d4b0a6c1257fe198f5097ad865f5649f5379` (`i18n.py`) and `9b8ce16cf897bf48a912c3a683f88e7e13a969fa` (`main.py` tests).
+- Windows Actions runs for these new commits are in progress at documentation time; no CI pass is claimed yet.
+
 ## Software-selection privacy regression — Windows Actions PASS (2026-11-11)
 - Source review found that `build_package()` filtered the optional `browser_summary` by application name only. If two registry entries shared a name but had different versions or publishers, the summary could include metadata associated with an unselected row.
 - The filter now requires an exact `(Name, Version, Publisher)` match against selected software rows. Fix and regression fixture are in `main.py` commit `9e850ea34b4a0d4be2b7de02dd93f674cb7cfa74`; the follow-up fixture syntax correction is `ee330ab387349617ce27e6e9ae2e3776b86b31b4`.
