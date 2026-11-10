@@ -1,4 +1,5 @@
 PC Context Builder v1.1.0 — multilingual UI candidate, not yet published (2026-11-10)
+- Fix a Windows CMD quoting failure when reading the product name from a Python `-c` command: store the shared value in `APP_NAME.txt`; Python loads it through `app_config.py`, and `start.bat` reads the same file with `set /p`.
 - Centralize the product name in `app_config.py`; use the same constant for the GUI title and `start.bat` startup/error logs, eliminating the stale console branding.
 - Fix untranslated Japanese text in the main-window scan-scope bullets and review overview table row labels; apply translations before rendering list/table values.
 - Add a four-language interface: Simplified Chinese, Japanese, Korean, and English.
