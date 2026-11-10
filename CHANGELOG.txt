@@ -1,3 +1,7 @@
+PC Context Builder v1.1.0 — localization regression fix (2026-11-11; candidate, not released)
+- Fix a regular-expression escaping error in the localized README sentence for the case where the PC profile is not selected. The previous pattern expected a backslash that the generated README sentence does not contain, leaving that sentence in English in zh/ja/ko output.
+- Add built-in self-test assertions for that sentence in Simplified Chinese, Japanese, Korean, and English. Code commits: `9dff0a1ac8a1d691195b7dd89d812dca8dd24f12` (i18n fix) and `092eeb47cc464c5ab9355a5c5897be5508b2a8c5` (regression assertions). Latest code head has not yet been confirmed by a retrievable CI result.
+
 PC Context Builder v1.1.0 — target-device acceptance complete; candidate not yet published (2026-11-11)
 - User-confirmed Windows 11 target-device acceptance: the main-window vertical scrollbar, scrolling behavior, responsive text reflow, and overall UI now work satisfactorily; the user reports no remaining issues.
 - Close [issue #8](https://github.com/yanchengz685-bot/PC-Context-Builder/issues/8) as completed based on the user's final device confirmation.
