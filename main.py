@@ -26,12 +26,11 @@ from pathlib import Path
 from tkinter import Tk, Toplevel, StringVar, BooleanVar, filedialog, messagebox
 from tkinter import ttk
 
+from app_config import APP_NAME
 from i18n import (
     LANGUAGE_CODES_BY_NAME, LANGUAGE_NAMES, LANGUAGE_ORDER,
     load_language_preference, save_language_preference, tr, translate_widget_tree, ui_font,
 )
-
-APP_NAME = "PC Context Builder"
 VERSION = "1.1.0"
 MAX_FILES = 150_000
 MAX_FOLDERS = 30_000
@@ -2088,6 +2087,14 @@ def self_test():
             assert any("python_fallback_used" in w.get("Reason", "") for w in fallback_payloads[0]["scan_warnings"])
         finally:
             globals()["run_powershell_json"] = original_runner
+
+    # Product-name consistency guard: the GUI and launcher use one shared constant.
+    assert APP_NAME == "PC Context Builder"
+    launcher_source = Path(__file__).with_name("start.bat").read_text(encoding="utf-8")
+    assert "from app_config import APP_NAME; print(APP_NAME)" in launcher_source
+    assert "Starting %APP_NAME%..." in launcher_source
+    assert "%APP_NAME% exited with an error." in launcher_source
+    assert "AI PC Intelligence" not in launcher_source
 
     # Regression guard for Tkinter geometry-manager parent consistency.
     source = Path(__file__).read_text(encoding="utf-8")
