@@ -576,6 +576,30 @@ for _language, _values in EXTRA_TRANSLATIONS_2.items():
     TRANSLATIONS[_language].update(_values)
 
 
+
+EXTRA_TRANSLATIONS_3 = {
+    "zh": {
+        "フォルダー": "文件夹", "現在：": "当前版本：",
+        "除外理由の集計を梱包する": "打包排除原因统计",
+        "機微候補として検出されたファイル名が": "检测到疑似敏感文件名，数量为",
+    },
+    "ja": {
+        "フォルダー": "フォルダー", "現在：": "現在：",
+        "機微候補として検出されたファイル名が": "機微候補として検出されたファイル名が",
+    },
+    "ko": {
+        "フォルダー": "폴더", "現在：": "현재 버전:",
+        "機微候補として検出されたファイル名が": "민감 정보 후보로 감지된 파일 이름이",
+    },
+    "en": {
+        "フォルダー": "Folders", "現在：": "Current:",
+        "機微候補として検出されたファイル名が": "Sensitive-candidate file names detected:",
+    },
+}
+for _language, _values in EXTRA_TRANSLATIONS_3.items():
+    TRANSLATIONS[_language].update(_values)
+
+
 def detect_system_language() -> str:
     """Map the Windows/user locale to one of the four supported languages."""
     try:
@@ -730,6 +754,65 @@ def _dynamic_translation(text: str, language: str) -> str:
             r"PC profile was not selected for inclusion\\.",
             {"zh": "未选择包含电脑基本信息。", "ja": "PC基本情報は収録対象に選択されていません。", "ko": "PC 프로필은 포함하도록 선택되지 않았습니다.", "en": "PC profile was not selected for inclusion."},
         ),
+
+        (
+            r"- Schema version: (?P<version>.*)",
+            {"zh": "架构版本：{version}", "ja": "スキーマバージョン：{version}", "ko": "스키마 버전: {version}", "en": "Schema version: {version}"},
+        ),
+        (
+            r"- Scan time: (?P<time>.*)",
+            {"zh": "扫描时间：{time}", "ja": "スキャン時刻：{time}", "ko": "스캔 시간: {time}", "en": "Scan time: {time}"},
+        ),
+        (
+            r"- OS: (?P<value>.*)",
+            {"zh": "操作系统：{value}", "ja": "OS：{value}", "ko": "운영 체제: {value}", "en": "OS: {value}"},
+        ),
+        (
+            r"- Architecture: (?P<value>.*)",
+            {"zh": "架构：{value}", "ja": "アーキテクチャ：{value}", "ko": "아키텍처: {value}", "en": "Architecture: {value}"},
+        ),
+        (
+            r"- Manufacturer / Model: (?P<value>.*)",
+            {"zh": "制造商／型号：{value}", "ja": "メーカー／モデル：{value}", "ko": "제조사 / 모델: {value}", "en": "Manufacturer / Model: {value}"},
+        ),
+        (
+            r"- Motherboard: (?P<value>.*)",
+            {"zh": "主板：{value}", "ja": "マザーボード：{value}", "ko": "마더보드: {value}", "en": "Motherboard: {value}"},
+        ),
+        (
+            r"- CPU: (?P<value>.*)",
+            {"zh": "CPU：{value}", "ja": "CPU：{value}", "ko": "CPU: {value}", "en": "CPU: {value}"},
+        ),
+        (
+            r"- Physical memory: (?P<value>.*)",
+            {"zh": "物理内存：{value}", "ja": "物理メモリ：{value}", "ko": "물리 메모리: {value}", "en": "Physical memory: {value}"},
+        ),
+        (
+            r"- GPU: (?P<value>.*)",
+            {"zh": "GPU：{value}", "ja": "GPU：{value}", "ko": "GPU: {value}", "en": "GPU: {value}"},
+        ),
+        (
+            r"- Display: (?P<value>.*)",
+            {"zh": "显示器：{value}", "ja": "ディスプレイ：{value}", "ko": "디스플레이: {value}", "en": "Display: {value}"},
+        ),
+        (
+            r"- (?P<label>PC profile|Installed software|Storage|Folder index|File metadata index|Scan warnings|Security/exclusion summary): (?P<state>included|not included) ((?P<count>[\\d,]+) records)",
+            {
+                "zh": "{label}：{state}（{count} 条记录）",
+                "ja": "{label}：{state}（{count} 件）",
+                "ko": "{label}: {state}({count}개 레코드)",
+                "en": "{label}: {state} ({count} records)",
+            },
+        ),
+        (
+            r"警告：機微候補として検出されたファイル名が (?P<count>[\\d,]+) 件含まれます。必要なものだけを残してください。",
+            {
+                "zh": "警告：包含 {count} 个疑似敏感文件名。请仅保留确实需要的项目。",
+                "ja": "警告：機微候補として検出されたファイル名が {count} 件含まれます。必要なものだけを残してください。",
+                "ko": "주의: 민감 정보 후보 파일 이름 {count}개가 포함됩니다. 필요한 항목만 남겨 주세요.",
+                "en": "Warning: {count} sensitive-candidate file names are included. Keep only what you need.",
+            },
+        ),
     ]
     for pattern, templates in patterns:
         match = re.fullmatch(pattern, text)
@@ -747,6 +830,13 @@ def tr(text, language: str | None = None) -> str:
         table = TRANSLATIONS["ja"]
     else:
         table = TRANSLATIONS.get(language, TRANSLATIONS["en"])
+    for prefix in ("### ", "## ", "# ", "- "):
+        if text.startswith(prefix):
+            body = text[len(prefix):]
+            translated_body = table.get(body)
+            if translated_body is None:
+                translated_body = _dynamic_translation(body, language)
+            return prefix + translated_body
     if text in table:
         return table[text]
     return _dynamic_translation(text, language)
