@@ -1,3 +1,10 @@
+PC Context Builder v1.1.0 — software-selection privacy fix (2026-11-11; candidate, not released)
+- Tighten the optional browser-summary filter: only rows matching a selected software entry's exact Name + Version + Publisher tuple are retained in system_profile.json. Matching by application name alone could leak summary metadata for an unselected version when duplicate application names existed.
+- Expand the synthetic package fixture with the same application name at versions 1.0 (selected) and 0.9 (not selected), then assert that version 0.9 is absent from the generated system profile.
+- Windows Actions run [#42857099419](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42857099419) passed on code head `ee330ab387349617ce27e6e9ae2e3776b86b31b4`: CPython 3.14 x64 setup, source compilation, and built-in synthetic self-test.
+- The preceding run [#42856905898](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42856905898) failed at source compilation because the newly edited synthetic fixture had a missing list terminator; the self-test step was skipped. Fixture syntax was corrected in `ee330ab387349617ce27e6e9ae2e3776b86b31b4`, and the subsequent run #42857099419 passed.
+- Privacy boundary remains user selection-based; PR #6 is Open / Draft / unmerged and v1.1.0 remains unpublished.
+
 PC Context Builder v1.1.0 — source-review follow-up (2026-11-11; candidate, not released)
 - Fix an untranslated main-window footer label: “Python standard library only” now follows zh/ja/ko/en, with four-language self-test assertions.
 - Preserve the disabled scan-start state when the user changes language while the modeless drive-selection dialog is open. This prevents rebuilding the main window from re-enabling a second scan/drive-selection action. Add a source-guard regression assertion.
