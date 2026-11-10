@@ -1506,6 +1506,11 @@ class DriveSelection(Toplevel):
         self.destroy()
 
 
+def _responsive_wraplength(viewport_width: int, horizontal_inset: int = 0) -> int:
+    """Return a text wrap width that grows/shrinks with the available viewport."""
+    return max(120, int(viewport_width) - max(0, int(horizontal_inset)))
+
+
 class App:
     def __init__(self, root):
         self.root = root
@@ -1542,10 +1547,35 @@ class App:
         except Exception:
             pass
 
+    def _register_main_wrap_label(self, widget, horizontal_inset=64):
+        """Register a main-page label whose line wrapping follows the viewport."""
+        if not hasattr(self, "_main_wrap_widgets"):
+            self._main_wrap_widgets = []
+        self._main_wrap_widgets.append((widget, horizontal_inset))
+        try:
+            width = self.main_canvas.winfo_width()
+            if width > 1:
+                widget.configure(wraplength=_responsive_wraplength(width, horizontal_inset))
+        except Exception:
+            pass
+        return widget
+
+    def _apply_main_text_wrapping(self, viewport_width):
+        """Recalculate registered label wrap widths after every horizontal resize."""
+        for widget, horizontal_inset in getattr(self, "_main_wrap_widgets", []):
+            try:
+                if widget.winfo_exists():
+                    widget.configure(
+                        wraplength=_responsive_wraplength(viewport_width, horizontal_inset)
+                    )
+            except Exception:
+                continue
+
     def _resize_main_scroll_content(self, event):
-        """Keep the embedded frame as wide as the visible canvas."""
+        """Resize the embedded frame and reflow text to the new viewport width."""
         try:
             self.main_canvas.itemconfigure(self._main_canvas_window, width=event.width)
+            self._apply_main_text_wrapping(event.width)
             self._update_main_scrollregion()
         except Exception:
             pass
@@ -1675,6 +1705,7 @@ class App:
         self.main_canvas.configure(yscrollcommand=self.main_scrollbar.set)
 
         self.main_scroll_content = ttk.Frame(self.main_canvas, padding=20)
+        self._main_wrap_widgets = []
         self._main_canvas_window = self.main_canvas.create_window(
             (0, 0), window=self.main_scroll_content, anchor="nw"
         )
@@ -1695,7 +1726,13 @@ class App:
         )
         self.language_combo.pack(side="left")
         self.language_combo.bind("<<ComboboxSelected>>", self._change_language)
-        ttk.Label(outer, text="Windows PCの環境情報を収集し、確認後にAIアシスタント向けコンテキストパッケージを作成します。", font=ui_font(self.language, 10), wraplength=820).pack(anchor="w", pady=(4,14))
+        intro = ttk.Label(
+            outer,
+            text="Windows PCの環境情報を収集し、確認後にAIアシスタント向けコンテキストパッケージを作成します。",
+            font=ui_font(self.language, 10), wraplength=1, justify="left"
+        )
+        self._register_main_wrap_label(intro, horizontal_inset=48)
+        intro.pack(anchor="w", fill="x", pady=(4,14))
         tags = ttk.Frame(outer); tags.pack(anchor="w", pady=(0,14))
         ttk.Label(tags, text="ローカル処理", relief="solid", padding=(8,4)).pack(side="left", padx=(0,6))
         ttk.Label(tags, text="読み取り専用", relief="solid", padding=(8,4)).pack(side="left", padx=6)
@@ -1712,22 +1749,46 @@ class App:
         for line in details:
             # Translate the source string before adding the bullet prefix; otherwise
             # exact-key lookup cannot match the prefixed Japanese text.
-            ttk.Label(card, text="• " + self.t(line)).pack(anchor="w", pady=2)
+            item = ttk.Label(card, text="• " + self.t(line), wraplength=1, justify="left")
+            self._register_main_wrap_label(item, horizontal_inset=88)
+            item.pack(anchor="w", fill="x", pady=2)
         warning = ttk.LabelFrame(outer, text="プライバシー保護", padding=14)
         warning.pack(fill="x", pady=8)
-        ttk.Label(warning, text="スキャンとZIP生成はPC内で実行します。自動アップロードやネットワーク送信は行いません。ファイル名・パスも個人情報になり得るため、収集結果を確認してから梱包してください。", wraplength=820, justify="left").pack(anchor="w")
+        privacy_text = ttk.Label(
+            warning,
+            text="スキャンとZIP生成はPC内で実行します。自動アップロードやネットワーク送信は行いません。ファイル名・パスも個人情報になり得るため、収集結果を確認してから梱包してください。",
+            wraplength=1, justify="left"
+        )
+        self._register_main_wrap_label(privacy_text, horizontal_inset=88)
+        privacy_text.pack(anchor="w", fill="x")
         actions = ttk.Frame(outer); actions.pack(fill="x", pady=(16,8))
         self.start_btn = ttk.Button(actions, text="PC全体の概要をスキャン", command=self.start_scan)
         self.start_btn.pack(side="left")
         self.cancel_btn = ttk.Button(actions, text="スキャンを停止", command=self.cancel_scan, state="disabled")
         self.cancel_btn.pack(side="left", padx=8)
-        ttk.Label(outer, textvariable=self.status, font=ui_font(self.language, 10, "bold")).pack(anchor="w", pady=(8,2))
-        ttk.Label(outer, textvariable=self.progress, foreground="#555").pack(anchor="w")
+        status_label = ttk.Label(
+            outer, textvariable=self.status,
+            font=ui_font(self.language, 10, "bold"), wraplength=1, justify="left"
+        )
+        self._register_main_wrap_label(status_label, horizontal_inset=48)
+        status_label.pack(anchor="w", fill="x", pady=(8,2))
+        progress_label = ttk.Label(
+            outer, textvariable=self.progress, foreground="#555",
+            wraplength=1, justify="left"
+        )
+        self._register_main_wrap_label(progress_label, horizontal_inset=48)
+        progress_label.pack(anchor="w", fill="x")
         self.pb = ttk.Progressbar(outer, mode="indeterminate")
         self.pb.pack(fill="x", pady=8)
         note = ttk.LabelFrame(outer, text="重要な注意", padding=12)
         note.pack(fill="x", pady=8)
-        ttk.Label(note, text="• スキャン前に許可を求め、結果一覧の確認と最終承認が終わるまでZIPを作成しません。\n• スキャンは最大10分、最大150,000ファイル・30,000フォルダーで上限を設けます。上限に達した場合は部分スキャンとして記録します。\n• 生成ZIPは通常のZIPです。暗号化されていないため、共有する前に内容を確認してください。", justify="left").pack(anchor="w")
+        note_text = ttk.Label(
+            note,
+            text="• スキャン前に許可を求め、結果一覧の確認と最終承認が終わるまでZIPを作成しません。\n• スキャンは最大10分、最大150,000ファイル・30,000フォルダーで上限を設けます。上限に達した場合は部分スキャンとして記録します。\n• 生成ZIPは通常のZIPです。暗号化されていないため、共有する前に内容を確認してください。",
+            wraplength=1, justify="left"
+        )
+        self._register_main_wrap_label(note_text, horizontal_inset=80)
+        note_text.pack(anchor="w", fill="x")
         ttk.Label(outer, text=f"v{VERSION} • Python標準ライブラリのみ • Windows 11 x64", foreground="#666").pack(anchor="e", pady=(10,0))
         translate_widget_tree(self.container, self.language)
 
@@ -2179,6 +2240,20 @@ def self_test():
     assert "winfo_containing(event.x_root, event.y_root)" in app_mousewheel_source
     assert 'winfo_class() == "TCombobox"' in app_mousewheel_source
     assert 'canvas.yview_scroll(units, "units")' in app_mousewheel_source
+    wrap_helper_source = inspect.getsource(_responsive_wraplength)
+    assert "int(viewport_width)" in wrap_helper_source
+    assert "horizontal_inset" in wrap_helper_source
+    assert _responsive_wraplength(1000, 80) >= _responsive_wraplength(800, 80)
+    assert _responsive_wraplength(600, 80) <= _responsive_wraplength(800, 80)
+    app_resize_source = inspect.getsource(App._resize_main_scroll_content)
+    assert "self._apply_main_text_wrapping(event.width)" in app_resize_source
+    assert "self.main_canvas.itemconfigure(self._main_canvas_window, width=event.width)" in app_resize_source
+    wrap_register_source = inspect.getsource(App._register_main_wrap_label)
+    assert "self._main_wrap_widgets.append((widget, horizontal_inset))" in wrap_register_source
+    assert "_responsive_wraplength(width, horizontal_inset)" in wrap_register_source
+    assert "wraplength=820" not in app_build_source
+    assert "wraplength=1" in app_build_source
+    assert "self._register_main_wrap_label(" in app_build_source
     app_init_source = inspect.getsource(App.__init__)
     assert 'bind_all("<MouseWheel>", self._on_main_mousewheel, add="+")' in app_init_source
     files_tab = source.split("    def _build_files_tab(self):", 1)[1].split("    def _visible_folder_rows(self):", 1)[0]
