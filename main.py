@@ -1308,7 +1308,7 @@ class ReviewWindow(Toplevel):
         self.file_tree.delete(*self.file_tree.get_children())
         self.file_page_rows = self._visible_file_rows()
         for i, r in enumerate(self.file_page_rows):
-            self.file_tree.insert("", "end", iid=str(i), values=(self.t("はい") if r.get("Include") else self.t("いいえ"), r["Name"], r["Extension"], format_bytes(r["SizeBytes"]), r["Modified"], r["PrivacyCandidate"], r["Path"]))
+            self.file_tree.insert("", "end", iid=str(i), values=(self.t("はい") if r.get("Include") else self.t("いいえ"), r["Name"], r["Extension"], format_bytes(r["SizeBytes"]), r["Modified"], self.t(r["PrivacyCandidate"]), r["Path"]))
         self._update_file_hint()
         query = self.file_search_var.get().strip().casefold()
         total = len(self.payload["files"])
@@ -1363,7 +1363,7 @@ class ReviewWindow(Toplevel):
             f"{self.t('スキップされた項目：')}{counts['skipped']:,} {self.t('件')}\n"
             f"{self.t('アクセス／メタデータ取得エラー：')}{counts['errors']:,} {self.t('件')}\n"
             f"{self.t('ファイル：')}{counts['files']:,} {self.t('件')}\n{self.t('フォルダー：')}{counts['folders']:,} {self.t('件')}\n"
-            f"{self.t('スキャン状態：')}{self.payload.get('filesystem_status')}\n\n"
+            f"{self.t('スキャン状態：')}{self.t(self.payload.get('filesystem_status'))}\n\n"
             f"{self.t('OS・アプリケーションの保護領域、隠し／システムフォルダー、資格情報候補のフォルダー、再解析ポイントは走査しません。')}"
         )
         ttk.Label(f, text=text, justify="left").pack(anchor="nw", fill="x", pady=12)
@@ -1739,7 +1739,7 @@ class App:
                     self.start_btn.configure(state="normal")
                     self.cancel_btn.configure(state="disabled")
                     self.status.set(self.t("スキャンが終了しました。収集結果を確認してください。"))
-                    self.progress.set(self.t(f"ファイル {len(data['files']):,} 件 / フォルダー {len(data['folders']):,} 件 / 状態 {data['filesystem_status']}"))
+                    self.progress.set(self.t(f"ファイル {len(data['files']):,} 件 / フォルダー {len(data['folders']):,} 件 / 状態 {self.t(data['filesystem_status'])}"))
                     self.start_btn.configure(state="disabled")
                     self.review_window = ReviewWindow(self.root, self.payload, self.create_zip, self.language)
                     self.review_window.set_on_close(self._on_review_closed)
