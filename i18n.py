@@ -638,6 +638,17 @@ def ui_font(language: str, size: int, weight: str | None = None):
     return (family, size, weight) if weight else (family, size)
 
 
+
+EXTRA_TRANSLATIONS_5 = {
+    "zh": {"Yes": "是", "No": "否", "completed": "已完成", "partial_errors": "部分完成（有错误）"},
+    "ja": {"Yes": "はい", "No": "いいえ", "completed": "完了", "partial_errors": "一部エラーあり"},
+    "ko": {"Yes": "예", "No": "아니요", "completed": "완료", "partial_errors": "부분 완료(오류 포함)"},
+    "en": {"Yes": "Yes", "No": "No", "completed": "completed", "partial_errors": "partial (with errors)"},
+}
+for _language, _values in EXTRA_TRANSLATIONS_5.items():
+    TRANSLATIONS[_language].update(_values)
+
+
 def detect_system_language() -> str:
     """Map the Windows/user locale to one of the four supported languages."""
     try:
