@@ -3,7 +3,7 @@
 - The loader now accepts only a JSON object containing a supported language code; other JSON shapes and unsupported codes fall back to the detected system locale.
 - Added isolated temporary-file self-tests for list, null, number, string, a supported language object, and an unsupported language code. The user's actual settings file is not read or changed by this test.
 - Code commits: `9633d4b0a6c1257fe198f5097ad865f5649f5379` (`i18n.py`) and `9b8ce16cf897bf48a912c3a683f88e7e13a969fa` (`main.py` tests).
-- Windows Actions #42857918921 passed on the loader commit; #42857930781 passed on the source+test commit (CPython 3.14 x64 setup, source compilation, built-in self-test). Latest documentation head 580b4a58594a622100addf02c3286e7846ce9b91 also passed #42858038772.
+- Windows Actions #42857918921 passed on the loader commit; #42857930781 passed on the source+test commit (CPython 3.14 x64 setup, source compilation, built-in self-test). Earlier documentation head 580b4a58594a622100addf02c3286e7846ce9b91 passed #42858038772; the subsequent full verification-doc head 02e124f310308ea78b7ef10c281a8515144ea44e passed #42858546627.
 
 ## Software-selection privacy regression — Windows Actions PASS (2026-11-11)
 - Source review found that `build_package()` filtered the optional `browser_summary` by application name only. If two registry entries shared a name but had different versions or publishers, the summary could include metadata associated with an unselected row.
