@@ -544,6 +544,38 @@ for _language, _values in EXTRA_TRANSLATIONS.items():
     TRANSLATIONS[_language].update(_values)
 
 
+
+EXTRA_TRANSLATIONS_2 = {
+    "zh": {
+        "件": "项", "スキップされた項目：": "已跳过项目：",
+        "アクセス／メタデータ取得エラー：": "访问／元数据获取错误：",
+        "ファイル：": "文件：", "フォルダー：": "文件夹：", "スキャン状態：": "扫描状态：",
+        "除外理由の集計を梱包する": "打包排除原因统计", "スキャン警告を梱包する": "打包扫描警告",
+        "AI向けZIPを作成しました。": "已创建 AI 资料 ZIP。",
+        "収録件数：": "收录数量：",
+    },
+    "ja": {"件": "件"},
+    "ko": {
+        "件": "개", "スキップされた項目：": "건너뛴 항목:",
+        "アクセス／メタデータ取得エラー：": "접근 / 메타데이터 수집 오류:",
+        "ファイル：": "파일:", "フォルダー：": "폴더:", "スキャン状態：": "스캔 상태:",
+        "除外理由の集計を梱包する": "제외 사유 집계 패키징", "スキャン警告を梱包する": "스캔 경고 패키징",
+        "AI向けZIPを作成しました。": "AI용 ZIP을 만들었습니다.",
+        "収録件数：": "포함 항목 수:",
+    },
+    "en": {
+        "件": "items", "スキップされた項目：": "Skipped items:",
+        "アクセス／メタデータ取得エラー：": "Access / metadata errors:",
+        "ファイル：": "Files:", "フォルダー：": "Folders:", "スキャン状態：": "Scan status:",
+        "除外理由の集計を梱包する": "Include exclusion-reason summary", "スキャン警告を梱包する": "Include scan warnings",
+        "AI向けZIPを作成しました。": "The AI context ZIP was created.",
+        "収録件数：": "Record counts:",
+    },
+}
+for _language, _values in EXTRA_TRANSLATIONS_2.items():
+    TRANSLATIONS[_language].update(_values)
+
+
 def detect_system_language() -> str:
     """Map the Windows/user locale to one of the four supported languages."""
     try:
@@ -684,6 +716,19 @@ def _dynamic_translation(text: str, language: str) -> str:
                 "ko": "파일 {files}개 / 폴더 {folders}개 / 제외 {skipped}개 / 오류 {errors}개",
                 "en": "{files} files / {folders} folders / {skipped} excluded / {errors} errors",
             },
+        ),
+
+        (
+            r"除外理由の集計を梱包する（検出 (?P<count>[\\d,]+) 件）",
+            {"zh": "打包排除原因统计（检测到 {count} 项）", "ja": "除外理由の集計を梱包する（検出 {count} 件）", "ko": "제외 사유 집계 패키징(감지 {count}개)", "en": "Include exclusion-reason summary ({count} detected)"},
+        ),
+        (
+            r"スキャン警告を梱包する（(?P<count>[\\d,]+) 件）",
+            {"zh": "打包扫描警告（{count} 项）", "ja": "スキャン警告を梱包する（{count} 件）", "ko": "스캔 경고 패키징({count}개)", "en": "Include scan warnings ({count} items)"},
+        ),
+        (
+            r"PC profile was not selected for inclusion\\.",
+            {"zh": "未选择包含电脑基本信息。", "ja": "PC基本情報は収録対象に選択されていません。", "ko": "PC 프로필은 포함하도록 선택되지 않았습니다.", "en": "PC profile was not selected for inclusion."},
         ),
     ]
     for pattern, templates in patterns:
