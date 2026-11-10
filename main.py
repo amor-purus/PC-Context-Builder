@@ -26,8 +26,13 @@ from pathlib import Path
 from tkinter import Tk, Toplevel, StringVar, BooleanVar, filedialog, messagebox
 from tkinter import ttk
 
+from i18n import (
+    LANGUAGE_CODES_BY_NAME, LANGUAGE_NAMES, LANGUAGE_ORDER,
+    load_language_preference, save_language_preference, tr, translate_widget_tree,
+)
+
 APP_NAME = "PC Context Builder"
-VERSION = "1.0.9"
+VERSION = "1.1.0"
 MAX_FILES = 150_000
 MAX_FOLDERS = 30_000
 MAX_SCAN_SECONDS = 600
@@ -801,7 +806,7 @@ def safe_json_bytes(value):
     return (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8-sig", errors="replace")
 
 
-def generate_readme(payload, selected, included_counts):
+def generate_readme(payload, selected, included_counts, language="en"):
     sysd = payload["system"]
     hw = sysd.get("hardware", {})
     osd = sysd.get("os", {})
@@ -845,10 +850,10 @@ def generate_readme(payload, selected, included_counts):
         "", "## How an AI assistant should use this package", "",
         "Use system_profile.json to understand the machine environment; installed_software.csv to identify selected software; volumes.csv for storage; folders.csv and files.csv as a searchable metadata index only. Do not assume the package contains file contents.",
     ]
-    return "\n".join(lines) + "\n"
+    return "\n".join(tr(line, language) for line in lines) + "\n"
 
 
-def build_package(payload, choices, output_dir):
+def build_package(payload, choices, output_dir, language="en"):
     selected = dict(choices.get("categories", {}))
     system = payload["system"]
     files = [r for r in payload["files"] if r.get("Include", False)] if selected.get("files") else []
@@ -878,6 +883,7 @@ def build_package(payload, choices, output_dir):
     }
     manifest = {
         "schema_version": VERSION,
+        "ui_language": language,
         "generated_at": now_iso(),
         "scan_time": payload.get("scan_time"),
         "scan_status": payload.get("filesystem_status"),
@@ -895,7 +901,7 @@ def build_package(payload, choices, output_dir):
     temp = dest + ".tmp"
     try:
         with zipfile.ZipFile(temp, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
-            zf.writestr("PC_Context_Pack/00_README_FOR_AI.md", generate_readme(payload, selected, counts))
+            zf.writestr("PC_Context_Pack/00_README_FOR_AI.md", generate_readme(payload, selected, counts, language))
             if system_out:
                 zf.writestr("PC_Context_Pack/01_PC_PROFILE/system_profile.json", safe_json_bytes(system_out))
             if selected.get("software"):
