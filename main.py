@@ -1645,6 +1645,9 @@ class App:
         if self.drive_dialog is not None:
             try:
                 if self.drive_dialog.winfo_exists():
+                    # Rebuilding the main window must not re-enable the scan
+                    # action while the modeless drive selector is still open.
+                    self.start_btn.configure(state="disabled")
                     self.drive_dialog.set_language(self.language)
             except Exception:
                 self.drive_dialog = None
@@ -2276,6 +2279,10 @@ def self_test():
     assert "self._register_main_wrap_label(" in app_build_source
     app_init_source = inspect.getsource(App.__init__)
     assert 'bind_all("<MouseWheel>", self._on_main_mousewheel, add="+")' in app_init_source
+    change_language_source = inspect.getsource(App._change_language)
+    drive_dialog_language_block = change_language_source.split("if self.drive_dialog is not None:", 1)[1]
+    assert 'self.start_btn.configure(state="disabled")' in drive_dialog_language_block
+    assert 'self.drive_dialog.set_language(self.language)' in drive_dialog_language_block
     files_tab = source.split("    def _build_files_tab(self):", 1)[1].split("    def _visible_folder_rows(self):", 1)[0]
     assert "file_table = ttk.Frame(f)" in files_tab
     assert "self.file_tree = ttk.Treeview(file_table," in files_tab
