@@ -623,6 +623,21 @@ for _language, _values in EXTRA_TRANSLATIONS_4.items():
     TRANSLATIONS[_language].update(_values)
 
 
+
+FONT_FAMILIES = {
+    "zh": "Microsoft YaHei UI",
+    "ja": "Yu Gothic UI",
+    "ko": "Malgun Gothic",
+    "en": "Segoe UI",
+}
+
+
+def ui_font(language: str, size: int, weight: str | None = None):
+    """Choose a Windows UI font with native glyph coverage for the selected locale."""
+    family = FONT_FAMILIES.get(language, FONT_FAMILIES["en"])
+    return (family, size, weight) if weight else (family, size)
+
+
 def detect_system_language() -> str:
     """Map the Windows/user locale to one of the four supported languages."""
     try:
