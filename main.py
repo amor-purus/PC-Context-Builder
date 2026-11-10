@@ -2088,12 +2088,14 @@ def self_test():
         finally:
             globals()["run_powershell_json"] = original_runner
 
-    # Product-name consistency guard: the GUI and launcher use one shared constant.
-    assert APP_NAME == "PC Context Builder"
+    # Product-name consistency guard: GUI and CMD read the same plain-text config.
+    name_file = Path(__file__).with_name("APP_NAME.txt")
+    assert name_file.read_text(encoding="utf-8-sig").strip() == APP_NAME == "PC Context Builder"
     launcher_source = Path(__file__).with_name("start.bat").read_text(encoding="utf-8")
-    assert "from app_config import APP_NAME; print(APP_NAME)" in launcher_source
+    assert 'set /p APP_NAME=<"%~dp0APP_NAME.txt"' in launcher_source
     assert "Starting %APP_NAME%..." in launcher_source
     assert "%APP_NAME% exited with an error." in launcher_source
+    assert "for /f" not in launcher_source
     assert "AI PC Intelligence" not in launcher_source
 
     # Regression guard for Tkinter geometry-manager parent consistency.
