@@ -2121,7 +2121,37 @@ def self_test():
     assert "GlobalMemoryStatusEx" in memory_source
     assert "motherboard_manufacturer" in inspect.getsource(normalize_system_result)
 
+    # Windows HiDPI regression guard: DPI awareness must be requested before Tk().
+    dpi_helper_source = inspect.getsource(_enable_windows_dpi_awareness)
+    assert "SetProcessDpiAwareness" in dpi_helper_source
+    assert "PROCESS_SYSTEM_DPI_AWARE = 1" in dpi_helper_source
+    main_source = inspect.getsource(main)
+    assert main_source.index("_enable_windows_dpi_awareness()") < main_source.index("root = Tk()")
+    if is_windows():
+        _enable_windows_dpi_awareness()
+        awareness = ctypes.c_int()
+        ctypes.OleDLL("shcore").GetProcessDpiAwareness(None, ctypes.byref(awareness))
+        assert awareness.value != 0, "Windows process is still DPI-unaware"
+
     print("SELF-TEST PASS")
+
+
+def _enable_windows_dpi_awareness() -> bool:
+    """Request system DPI awareness before creating the first Tk window.
+
+    This follows CPython IDLE's Windows HiDPI workaround. Windows otherwise
+    bitmap-stretches DPI-unaware Tk windows on scaled displays, making text soft.
+    If a manifest or host process already selected an awareness mode, Windows
+    rejects a second process-wide change; keep the existing mode and continue.
+    """
+    if not is_windows():
+        return False
+    try:
+        PROCESS_SYSTEM_DPI_AWARE = 1
+        ctypes.OleDLL("shcore").SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+        return True
+    except (ImportError, AttributeError, OSError):
+        return False
 
 
 def main():
@@ -2134,6 +2164,8 @@ def main():
     if not is_windows():
         print(tr("Windows 11 only", load_language_preference()))
         return
+    # Must run before Tk() creates any window handles.
+    _enable_windows_dpi_awareness()
     root = Tk()
     try:
         style = ttk.Style(root)
