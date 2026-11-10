@@ -45,6 +45,18 @@ EXCLUDED_DIR_NAMES = {
     ".git", "node_modules", "__pycache__", ".venv", "venv", ".pytest_cache",
     ".mypy_cache", ".ruff_cache", ".tox", "site-packages", "pip-cache",
 }
+
+# Common cloud-sync roots. The environment-variable paths cover renamed
+# organization folders and custom sync locations where Windows exposes them.
+CLOUD_SYNC_DIR_NAMES = {
+    "onedrive", "dropbox", ".dropbox.cache", "google drive", "googledrivefs",
+    "icloud drive", "box", "box sync", "box drive", "sharepoint",
+    "my drive", "shared drives",
+}
+CLOUD_SYNC_ROOT_ENV_VARS = (
+    "OneDrive", "OneDriveCommercial", "OneDriveConsumer", "Dropbox",
+    "GOOGLE_DRIVE", "GoogleDrive", "ICLOUD_DRIVE", "BOX_DRIVE", "SharePoint",
+)
 SENSITIVE_DIR_NAMES = {
     ".ssh", ".gnupg", ".aws", ".azure", ".config/gcloud",
     "credentials", "credential", "secrets", "secret", "private_keys",
@@ -238,9 +250,46 @@ def is_sensitive_name(name: str, full_path: str = "") -> bool:
     return any(p.search(text) for p in SENSITIVE_NAME_PATTERNS)
 
 
-def is_sensitive_dir(name: str) -> bool:
-    low = name.casefold().strip()
-    return low in {x.casefold() for x in SENSITIVE_DIR_NAMES}
+def is_sensitive_dir(name: str, full_path: str = "") -> bool:
+    """Match sensitive directory names and multi-component paths.
+
+    SENSITIVE_DIR_NAMES may contain either a leaf name (for example, ".ssh")
+    or a relative path (for example, ".config/gcloud"). Matching path
+    components avoids treating a partial name such as "gcloudish" as a match.
+    """
+    path_parts = [part.casefold() for part in re.split(r"[\\/]+", str(full_path or name)) if part]
+    for candidate in SENSITIVE_DIR_NAMES:
+        candidate_parts = [part.casefold() for part in re.split(r"[\\/]+", str(candidate).strip("/\\ ")) if part]
+        if not candidate_parts:
+            continue
+        width = len(candidate_parts)
+        if any(path_parts[index:index + width] == candidate_parts for index in range(len(path_parts) - width + 1)):
+            return True
+    return False
+
+
+def is_cloud_sync_directory(name: str, full_path: str = "") -> bool:
+    """Detect common sync-folder names and paths exposed by Windows clients."""
+    low_name = str(name or "").casefold().strip()
+    if low_name in CLOUD_SYNC_DIR_NAMES or low_name.startswith("onedrive - "):
+        return True
+    if not full_path:
+        return False
+    try:
+        candidate_path = os.path.normcase(os.path.abspath(os.path.expandvars(str(full_path))))
+    except (OSError, ValueError):
+        return False
+    for env_name in CLOUD_SYNC_ROOT_ENV_VARS:
+        sync_root = os.environ.get(env_name)
+        if not sync_root:
+            continue
+        try:
+            root_path = os.path.normcase(os.path.abspath(os.path.expandvars(sync_root)))
+            if os.path.commonpath((candidate_path, root_path)) == root_path:
+                return True
+        except (OSError, ValueError):
+            continue
+    return False
 
 
 def get_display_resolution():
@@ -488,8 +537,10 @@ def should_skip_dir(name: str, attrs: int, full_path: str):
     low = name.casefold()
     if low in {x.casefold() for x in EXCLUDED_DIR_NAMES}:
         return True, "protected_or_high_volume_directory"
-    if is_sensitive_dir(name) or is_sensitive_name(name, full_path):
+    if is_sensitive_dir(name, full_path) or is_sensitive_name(name, full_path):
         return True, "sensitive_directory_candidate"
+    if is_cloud_sync_directory(name, full_path):
+        return True, "cloud_sync_directory"
     # Windows reparse point flag (junctions/symlinks/mount points).
     if attrs & 0x400:
         return True, "reparse_point_not_followed"
@@ -719,13 +770,30 @@ def create_scan_payload(q: queue.Queue, cancel_event: threading.Event, selected_
     q.put(("done", payload))
 
 
+CSV_FORMULA_PREFIX_RE = re.compile(r"^[\s\x00-\x1f\ufeff\u200b\u200c\u200d]*[=+\-@]")
+
+
+def sanitize_csv_cell(value):
+    """Neutralize spreadsheet formula triggers in untrusted text fields.
+
+    Numeric values remain numeric. Text beginning with a spreadsheet formula
+    operator after whitespace/control characters is prefixed with an apostrophe
+    so common spreadsheet applications treat it as text when opening the CSV.
+    """
+    if not isinstance(value, str):
+        return value
+    if value.startswith(("\t", "\r", "\n")) or CSV_FORMULA_PREFIX_RE.match(value):
+        return "'" + value
+    return value
+
+
 def csv_bytes(rows, headers):
     import io
     buff = io.StringIO(newline="")
     writer = csv.DictWriter(buff, fieldnames=headers, extrasaction="ignore")
     writer.writeheader()
     for row in rows:
-        writer.writerow(row)
+        writer.writerow({key: sanitize_csv_cell(value) for key, value in row.items()})
     return buff.getvalue().encode("utf-8-sig", errors="replace")
 
 
@@ -1590,6 +1658,22 @@ def self_test():
     assert is_sensitive_name("adbkey.pub", r"C:\Users\Example\.android\adbkey.pub")
     assert not is_sensitive_name("vacation.jpg")
 
+    # CSV values originating from file names, paths, and registry metadata must
+    # not become spreadsheet formulas when opened by common spreadsheet apps.
+    formula_cells = ("=1+1", "+SUM(1,1)", "-1+2", "@SUM(1,1)", "  =1+1", "\t=1+1", "\r\n=1+1", "\ufeff=1+1")
+    for value in formula_cells:
+        assert sanitize_csv_cell(value) == "'" + value
+    for value in ("normal.txt", "2026-11-10T12:00:00+09:00", "ordinary text"):
+        assert sanitize_csv_cell(value) == value
+    assert sanitize_csv_cell(12345) == 12345
+    parsed_csv = list(csv.DictReader(io.StringIO(csv_bytes([{"Value": "=1+1"}, {"Value": "safe"}], ["Value"]).decode("utf-8-sig"))))
+    assert parsed_csv[0]["Value"] == "'=1+1" and parsed_csv[1]["Value"] == "safe"
+
+    # Sensitive paths support multi-component entries such as .config/gcloud.
+    assert is_sensitive_dir("gcloud", r"C:\\Users\\Example\\.config\\gcloud")
+    assert not is_sensitive_dir("gcloudish", r"C:\\Users\\Example\\.config\\gcloudish")
+    assert is_cloud_sync_directory("OneDrive - Contoso", r"C:\\Users\\Example\\OneDrive - Contoso")
+
     # The PowerShell collector must drain both pipes while the child process is
     # running. This regression emits much more than a typical Windows pipe buffer
     # to stdout and stderr before it exits.
@@ -1699,6 +1783,15 @@ def self_test():
         (root / ".ssh" / "id_rsa").write_text("PRIVATE KEY BODY", encoding="utf-8")
         (root / "node_modules").mkdir()
         (root / "node_modules" / "package.json").write_text("{}", encoding="utf-8")
+        config_gcloud = root / ".config" / "gcloud"
+        config_gcloud.mkdir(parents=True)
+        (config_gcloud / "credentials.json").write_text("DO_NOT_SCAN", encoding="utf-8")
+        named_sync = root / "OneDrive - Example Org"
+        named_sync.mkdir()
+        (named_sync / "synced.txt").write_text("DO_NOT_SCAN", encoding="utf-8")
+        custom_sync = root / "CustomSyncRoot"
+        custom_sync.mkdir()
+        (custom_sync / "custom-synced.txt").write_text("DO_NOT_SCAN", encoding="utf-8")
         try:
             os.symlink(root / "Documents", root / "linked_documents", target_is_directory=True)
         except (OSError, NotImplementedError):
@@ -1706,7 +1799,8 @@ def self_test():
 
         q = queue.Queue()
         cancel = threading.Event()
-        scan_filesystem([str(root)], q, cancel)
+        with __import__("unittest.mock", fromlist=["patch"]).patch.dict(os.environ, {"OneDrive": str(custom_sync)}, clear=False):
+            scan_filesystem([str(root)], q, cancel)
         scan_result = None
         while not q.empty():
             kind, data = q.get_nowait()
@@ -1720,7 +1814,10 @@ def self_test():
         assert next(r for r in scan_result["files"] if r["Name"] == ".env")["PrivacyCandidate"] == "Yes"
         folder_names = {Path(r["Path"]).name.casefold() for r in scan_result["folders"]}
         assert "private_notes" not in folder_names and ".ssh" not in folder_names and "node_modules" not in folder_names
+        assert "gcloud" not in folder_names
+        assert "onedrive - example org" not in folder_names and "customsyncroot" not in folder_names
         assert all(not r["Include"] for r in scan_result["folders"])
+        assert not {"credentials.json", "synced.txt", "custom-synced.txt"} & scanned_names
 
         safe_file = next(r.copy() for r in scan_result["files"] if r["Name"] == "normal.txt")
         safe_file["Include"] = True

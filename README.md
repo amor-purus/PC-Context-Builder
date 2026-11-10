@@ -28,6 +28,7 @@
 - 读取主板信息与双显卡设备信息（取决于 WMI/CIM 提供程序）。
 - 系统保护目录的预期权限拒绝按跳过处理；其他权限错误写入扫描报告。
 - Android ADB `adbkey` / `adbkey.pub` 作为机敏候选，默认排除。
+- CSV 文本字段会对可能触发表格公式的前缀进行文本化处理；敏感目录支持多级路径匹配（包括 `.config/gcloud`）及常见云同步目录/Windows 同步根目录识别。上述检测仍是启发式防护，不能替代分享前检查。
 - GUI 子窗口使用非模态 Toplevel，避免 Windows transient/grab 组合的任务栏恢复问题；messagebox 显式绑定 parent。
 
 ## 测试
