@@ -1,3 +1,10 @@
+## Source-review follow-up — Windows Actions PASS (2026-11-11)
+- Fixed a missing localization for the main-window footer label “Python standard library only”; zh/ja/ko/en translation and self-test assertions were added. Source commit `c42dd060ec987df3541b548aeb57300eb42435bb`; assertions in `8bd20592b6d23d2305380ae190bddac639234c9f`.
+- Fixed a UI state issue: changing language while the modeless drive selector is open no longer re-enables the main scan button. The selector remains active and a second scan cannot be started from the rebuilt main window. Source commit `2d3f64623720b2c37a221ce03194c58b3ca0d465`; source-guard regression test included in `8bd2059`.
+- Strengthened the localized no-PC-profile case: the self-test now builds a ZIP for each of zh/ja/ko/en with the PC profile category disabled and checks the actual generated README sentence. Test expansion commit `ee31295d34b9a8b82c900ac04a185ab278754721`.
+- Windows Actions run [#42856545429](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42856545429) completed successfully on PR head `8bd20592b6d23d2305380ae190bddac639234c9f`: CPython 3.14 x64 setup, source compilation, and built-in synthetic self-test all passed.
+- The localized README regex fix is in `9dff0a1ac8a1d691195b7dd89d812dca8dd24f12`; the original helper assertions were in `092eeb4`. The end-to-end ZIP/README integration assertions are now also covered.
+
 ## Localization regression follow-up — 2026-11-11
 - Source review found that the dynamic translation regex for the generated README sentence “PC profile was not selected for inclusion.” was over-escaped and did not match the actual generated line. This could leave that sentence in English for zh/ja/ko output when the PC profile category was not selected.
 - Fixed the regex in `i18n.py` commit `9dff0a1ac8a1d691195b7dd89d812dca8dd24f12`.
