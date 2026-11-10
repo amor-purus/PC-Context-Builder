@@ -3,7 +3,7 @@
 - The loader now accepts only a JSON object containing a supported language code; other JSON shapes and unsupported codes fall back to the detected system locale.
 - Added isolated temporary-file self-tests for list, null, number, string, a supported language object, and an unsupported language code. The user's actual settings file is not read or changed by this test.
 - Code commits: `9633d4b0a6c1257fe198f5097ad865f5649f5379` (`i18n.py`) and `9b8ce16cf897bf48a912c3a683f88e7e13a969fa` (`main.py` tests).
-- Windows Actions runs for these new commits are in progress at documentation time; no CI pass is claimed yet.
+- Windows Actions #42857918921 passed on the loader commit; #42857930781 passed on the source+test commit (CPython 3.14 x64 setup, source compilation, built-in self-test). Latest documentation head 580b4a58594a622100addf02c3286e7846ce9b91 also passed #42858038772.
 
 ## Software-selection privacy regression — Windows Actions PASS (2026-11-11)
 - Source review found that `build_package()` filtered the optional `browser_summary` by application name only. If two registry entries shared a name but had different versions or publishers, the summary could include metadata associated with an unselected row.
@@ -23,7 +23,7 @@
 - Source review found that the dynamic translation regex for the generated README sentence “PC profile was not selected for inclusion.” was over-escaped and did not match the actual generated line. This could leave that sentence in English for zh/ja/ko output when the PC profile category was not selected.
 - Fixed the regex in `i18n.py` commit `9dff0a1ac8a1d691195b7dd89d812dca8dd24f12`.
 - Added built-in self-test assertions for zh/ja/ko/en in `main.py` commit `092eeb47cc464c5ab9355a5c5897be5508b2a8c5`.
-- CI status for the latest code/doc head has not been confirmed through the available PR-run and combined-status queries. Do not treat this source-level correction as CI-verified until a fresh Windows Actions result is observed.
+- At the time of this entry, CI for the just-added correction had not yet returned. The later full source/doc head 274430dc4bdfb21a901db7b7f4d56af12bc3cc8e subsequently passed Windows Actions #42855493606.
 
 ## Final target-device acceptance — 2026-11-11
 - User confirmation: the Windows 11 target-device UI is now satisfactory and no remaining issues were found. The previously pending main-window scrollbar/scrolling and responsive text-reflow behavior are accepted as resolved.
@@ -46,7 +46,7 @@ v1.1.0 multilingual UI candidate — not yet released:
 - GitHub Actions Windows CI: PASS on candidate commit 2774046f6aed6b3169337c76ff451cc421f51a42 (run #42802155690), using CPython 3.14.10 x64; syntax compilation and built-in self-test passed. The synthetic self-test checks the generated README headings and manifest ui_language for zh/ja/ko/en, along with existing ZIP structure and privacy assertions.
 - Locale-appropriate Windows UI fonts are selected for Simplified Chinese, Japanese, Korean, and English.
 - Product branding fix: `APP_NAME.txt` is the single source for the product name; `app_config.py` loads it for Python/GUI, and `start.bat` reads the same file with `set /p`. This avoids nested `cmd.exe` quoting around the Python executable path. Historical release notes retain references to the former brand intentionally.
-- Added a self-test guard that verifies `APP_NAME.txt`, the Python constant, and the batch `set /p` integration agree; it also rejects the old fragile `for /f` Python command extraction. GitHub Actions Windows CI: PASS on commit `995047ec983b56bd689c84800ece709ea2a89030` (run #42808091904), CPython 3.14 x64; source compilation and the built-in synthetic self-test passed. The CMD launcher itself still requires verification on the target Windows 11 PC.
+- Added a self-test guard that verifies `APP_NAME.txt`, the Python constant, and the batch `set /p` integration agree; it also rejects the old fragile `for /f` Python command extraction. GitHub Actions Windows CI: PASS on commit `995047ec983b56bd689c84800ece709ea2a89030` (run #42808091904), CPython 3.14 x64; source compilation and the built-in synthetic self-test passed. The user subsequently confirmed the CMD launcher on Windows 11, including a Python executable path containing spaces, on 2026-11-10.
 - Localization regression fix: scan-scope bullets are translated before the bullet prefix is added, and review overview row labels are translated before insertion into the Treeview. Self-test assertions cover all five Chinese scan-scope entries and key overview labels.
 - Latest code candidate HEAD at review time: `66e7618f9edda74d48ed72f77f97f2db1d32ad5b` (2026-11-10). GitHub Actions Windows self-test run #42808214205 completed successfully on this exact commit: CPython 3.14 x64 setup, source compilation, and the built-in synthetic self-test all passed.
 - Target-device verification (user-reported, 2026-11-10; Windows 11 / CPython 3.14 x64): built-in SELF-TEST PASS; CMD startup PASS, including Python installed under a path containing spaces; four-language UI and manual language switching PASS; language preference persistence PASS; Review PASS; ZIP export PASS. The user reports all prescribed functional checks completed normally.
