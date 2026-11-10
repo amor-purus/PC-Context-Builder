@@ -1588,10 +1588,10 @@ class App:
 
     def _request_close(self):
         if self.worker and self.worker.is_alive():
-            if not messagebox.askyesno("終了確認", "スキャン中です。停止してアプリを終了しますか？", parent=self.root):
+            if not messagebox.askyesno(self.t("終了確認"), self.t("スキャン中です。停止してアプリを終了しますか？"), parent=self.root):
                 return
             self.cancel_event.set()
-            self.status.set("スキャンを停止して終了しています...")
+            self.status.set(self.t("スキャンを停止して終了しています..."))
             self.root.after(200, self._finish_close_when_stopped)
         else:
             self.root.destroy()
@@ -1670,20 +1670,20 @@ class App:
             except Exception:
                 self.review_window = None
         if not is_windows():
-            messagebox.showerror("Windows専用", "このアプリはWindows 11上で実行してください。", parent=self.root)
+            messagebox.showerror(self.t("Windows専用"), self.t("このアプリはWindows 11上で実行してください。"), parent=self.root)
             return
         if sys.version_info[:2] != (3,14) or sys.maxsize <= 2**32:
-            messagebox.showerror("実行環境が違います", f"Python 3.14 x64が必要です。\n現在：{sys.version.split()[0]} / {'64-bit' if sys.maxsize>2**32 else '32-bit'}", parent=self.root)
+            messagebox.showerror(self.t("実行環境が違います"), self.t("Python 3.14 x64が必要です。") + f"\n{self.t('現在：')}{sys.version.split()[0]} / {'64-bit' if sys.maxsize>2**32 else '32-bit'}", parent=self.root)
             return
-        if not messagebox.askyesno("スキャン開始の確認", "ローカルPCのシステム情報・ソフトウェア情報・ドライブ情報・ファイルのメタデータを読み取り専用で調査します。\n\nファイルの中身、パスワード、Cookie、APIキーは読み取りません。\n\n続けて対象ドライブを選択します。開始しますか？", parent=self.root):
+        if not messagebox.askyesno(self.t("スキャン開始の確認"), self.t("ローカルPCのシステム情報・ソフトウェア情報・ドライブ情報・ファイルのメタデータを読み取り専用で調査します。\n\nファイルの中身、パスワード、Cookie、APIキーは読み取りません。\n\n続けて対象ドライブを選択します。開始しますか？"), parent=self.root):
             return
         drives = discover_fixed_drives_fast()
         if not drives:
-            messagebox.showerror("ドライブを検出できません", "ローカル固定ドライブを取得できませんでした。", parent=self.root)
+            messagebox.showerror(self.t("ドライブを検出できません"), self.t("ローカル固定ドライブを取得できませんでした。"), parent=self.root)
             return
         # Prevent a second selector or duplicate scan without using a Tk grab.
         self.start_btn.configure(state="disabled")
-        chooser = DriveSelection(self.root, drives)
+        chooser = DriveSelection(self.root, drives, self.language)
         self.drive_dialog = chooser
         self.root.wait_window(chooser)
         self.drive_dialog = None
@@ -1698,7 +1698,7 @@ class App:
         self.selected_roots = chooser.result
         self.cancel_event.clear()
         self.cancel_btn.configure(state="normal")
-        self.status.set("スキャンを開始しています...")
+        self.status.set(self.t("スキャンを開始しています..."))
         self.progress.set("")
         self.pb.start(10)
         self.worker = threading.Thread(target=self._scan_worker, daemon=True)
@@ -1714,7 +1714,7 @@ class App:
 
     def cancel_scan(self):
         self.cancel_event.set()
-        self.status.set("停止要求を送信しました。現在の項目を安全に終了しています...")
+        self.status.set(self.t("停止要求を送信しました。現在の項目を安全に終了しています..."))
         self.cancel_btn.configure(state="disabled")
 
     def _poll(self):
@@ -1722,52 +1722,52 @@ class App:
             while True:
                 kind, data = self.q.get_nowait()
                 if kind == "status":
-                    self.status.set(data)
+                    self.status.set(self.t(data))
                 elif kind == "progress":
-                    self.progress.set(f"ファイル {data['files']:,} / フォルダー {data['folders']:,} / 除外 {data['skipped']:,} / エラー {data['errors']:,} — {data['current']}")
+                    self.progress.set(self.t(f"ファイル {data['files']:,} / フォルダー {data['folders']:,} / 除外 {data['skipped']:,} / エラー {data['errors']:,} — {data['current']}"))
                 elif kind == "cancelled":
                     self.pb.stop()
                     self.start_btn.configure(state="normal")
                     self.cancel_btn.configure(state="disabled")
-                    self.status.set("スキャンをキャンセルしました。ZIPは作成していません。")
+                    self.status.set(self.t("スキャンをキャンセルしました。ZIPは作成していません。"))
                     self.progress.set("")
                 elif kind == "done":
                     self.payload = data
                     self.pb.stop()
                     self.start_btn.configure(state="normal")
                     self.cancel_btn.configure(state="disabled")
-                    self.status.set("スキャンが終了しました。収集結果を確認してください。")
-                    self.progress.set(f"ファイル {len(data['files']):,} 件 / フォルダー {len(data['folders']):,} 件 / 状態 {data['filesystem_status']}")
+                    self.status.set(self.t("スキャンが終了しました。収集結果を確認してください。"))
+                    self.progress.set(self.t(f"ファイル {len(data['files']):,} 件 / フォルダー {len(data['folders']):,} 件 / 状態 {data['filesystem_status']}"))
                     self.start_btn.configure(state="disabled")
-                    self.review_window = ReviewWindow(self.root, self.payload, self.create_zip)
+                    self.review_window = ReviewWindow(self.root, self.payload, self.create_zip, self.language)
                     self.review_window.set_on_close(self._on_review_closed)
                 elif kind == "error":
                     self.pb.stop()
                     self.start_btn.configure(state="normal")
                     self.cancel_btn.configure(state="disabled")
-                    self.status.set("スキャンに失敗しました。")
-                    messagebox.showerror("スキャンエラー", data[-5000:], parent=self.root)
+                    self.status.set(self.t("スキャンに失敗しました。"))
+                    messagebox.showerror(self.t("スキャンエラー"), data[-5000:], parent=self.root)
         except queue.Empty:
             pass
         self.root.after(200, self._poll)
 
     def create_zip(self, choices, review_window=None):
         dialog_parent = review_window or self.root
-        output = filedialog.askdirectory(title="AI向けZIPの出力先を選択してください", mustexist=True, parent=dialog_parent)
+        output = filedialog.askdirectory(title=self.t("AI向けZIPの出力先を選択してください"), mustexist=True, parent=dialog_parent)
         if not output:
-            messagebox.showinfo("キャンセル", "出力先が選択されなかったため、ZIPは作成していません。レビュー画面に戻ります。", parent=dialog_parent)
+            messagebox.showinfo(self.t("キャンセル"), self.t("出力先が選択されなかったため、ZIPは作成していません。レビュー画面に戻ります。"), parent=dialog_parent)
             return False
         try:
-            self.status.set("AI向けZIPを作成し、整合性を検査しています...")
+            self.status.set(self.t("AI向けZIPを作成し、整合性を検査しています..."))
             self.root.update_idletasks()
-            path, counts, size = build_package(self.payload, choices, output)
-            self.status.set("ZIPの作成と整合性検査が完了しました。")
+            path, counts, size = build_package(self.payload, choices, output, self.language)
+            self.status.set(self.t("ZIPの作成と整合性検査が完了しました。"))
             self.progress.set(path)
             messagebox.showinfo("作成完了", f"AI向けZIPを作成しました。\n\n保存先：{path}\nサイズ：{format_bytes(size)}\n\n収録件数：\n" + "\n".join(f"{k}: {v:,}" for k,v in counts.items()) + "\n\nZIPの中身を確認してからAIアシスタントに共有してください。", parent=dialog_parent)
             return True
         except Exception as exc:
             self.status.set("ZIPの作成に失敗しました。")
-            messagebox.showerror("ZIP作成エラー", f"{type(exc).__name__}: {exc}", parent=dialog_parent)
+            messagebox.showerror(self.t("ZIP作成エラー"), f"{type(exc).__name__}: {exc}", parent=dialog_parent)
             return False
 
 
