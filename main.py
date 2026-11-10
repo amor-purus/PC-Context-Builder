@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""PC Context Builder v1.0.9 - Local, read-only Windows PC context packager.
+"""PC Context Builder v1.1.0 - Local, read-only Windows PC context packager.
 
 No third-party Python packages are required. File contents are never opened or copied.
 """
@@ -1081,9 +1081,10 @@ class ReviewWindow(Toplevel):
             ("ブラウザー", "; ".join(x.get("Name", "") + " " + x.get("Version", "") for x in s.get("browser_summary", []))),
         ]
         tree = ttk.Treeview(f, columns=("item","value"), show="headings", height=15)
-        tree.heading("item", text="項目"); tree.heading("value", text="取得値")
+        tree.heading("item", text=self.t("項目")); tree.heading("value", text=self.t("取得値"))
         tree.column("item", width=180, stretch=False); tree.column("value", width=750)
-        for row in lines: tree.insert("", "end", values=row)
+        for label, value in lines:
+            tree.insert("", "end", values=(self.t(label), value))
         tree.pack(fill="both", expand=True, pady=8)
         ttk.Label(f, text="コンピューター名とユーザー名を含むパスは匿名化します。機器固有IDやシリアル番号は取得しません。", foreground="#555", wraplength=950).pack(anchor="w")
 
@@ -1643,7 +1644,9 @@ class App:
             "保護領域・資格情報候補・隠しフォルダー・リンク先は除外",
         ]
         for line in details:
-            ttk.Label(card, text="• " + line).pack(anchor="w", pady=2)
+            # Translate the source string before adding the bullet prefix; otherwise
+            # exact-key lookup cannot match the prefixed Japanese text.
+            ttk.Label(card, text="• " + self.t(line)).pack(anchor="w", pady=2)
         warning = ttk.LabelFrame(outer, text="プライバシー保護", padding=14)
         warning.pack(fill="x", pady=8)
         ttk.Label(warning, text="スキャンとZIP生成はPC内で実行します。自動アップロードやネットワーク送信は行いません。ファイル名・パスも個人情報になり得るため、収集結果を確認してから梱包してください。", wraplength=820, justify="left").pack(anchor="w")
@@ -1797,6 +1800,29 @@ def self_test():
     assert tr("PC概要", "ja") == "PC概要"
     assert tr("PC概要", "ko") == "PC 개요"
     assert tr("PC概要", "en") == "PC overview"
+    # UI localization regressions: every scan-scope bullet and overview row label
+    # must resolve through the selected locale, not remain Japanese source copy.
+    scan_scope_keys = (
+        "Windows・CPU・メモリ・GPU・ディスプレイ情報",
+        "インストール済みソフトウェア・Python環境・ブラウザー情報",
+        "ローカル固定ドライブの容量情報",
+        "ファイル名・パス・サイズ・更新日時（内容は読まない）",
+        "保護領域・資格情報候補・隠しフォルダー・リンク先は除外",
+    )
+    scan_scope_zh = (
+        "Windows、CPU、内存、GPU 和显示器信息",
+        "已安装软件、Python 环境和浏览器信息",
+        "本地固定驱动器容量信息",
+        "文件名、路径、大小和修改时间（不读取文件内容）",
+        "排除受保护区域、可能包含凭据的目录、隐藏文件夹和链接目标",
+    )
+    assert tuple(tr(key, "zh") for key in scan_scope_keys) == scan_scope_zh
+    overview_label_zh = {
+        "メーカー・モデル": "制造商／型号", "マザーボード": "主板",
+        "メモリ": "内存", "ディスプレイ": "显示器", "ブラウザー": "浏览器",
+        "項目": "项目", "取得値": "获取值",
+    }
+    assert all(tr(key, "zh") == value for key, value in overview_label_zh.items())
     assert tr("Collection method: local read-only inventory", "zh") == "收集方式：本地只读清单"
     assert tr("- PC profile: included (1 records)", "en") == "- PC profile: included (1 records)"
 
@@ -2065,6 +2091,10 @@ def self_test():
 
     # Regression guard for Tkinter geometry-manager parent consistency.
     source = Path(__file__).read_text(encoding="utf-8")
+    overview_source = inspect.getsource(ReviewWindow._build_overview_tab)
+    assert "values=(self.t(label), value)" in overview_source
+    app_build_source = inspect.getsource(App._build)
+    assert '"• " + self.t(line)' in app_build_source
     files_tab = source.split("    def _build_files_tab(self):", 1)[1].split("    def _visible_folder_rows(self):", 1)[0]
     assert "file_table = ttk.Frame(f)" in files_tab
     assert "self.file_tree = ttk.Treeview(file_table," in files_tab
