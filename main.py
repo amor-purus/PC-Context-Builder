@@ -1135,9 +1135,9 @@ class ReviewWindow(Toplevel):
         self.software_rows = rows[start:start + SOFTWARE_PAGE_SIZE]
         self.software_tree.delete(*self.software_tree.get_children())
         for i, a in enumerate(self.software_rows):
-            self.software_tree.insert("", "end", iid=str(i), values=("はい" if a.get("Include",False) else "いいえ",a.get("Name",""),a.get("Version",""),a.get("Publisher",""),a.get("InstallLocation","")))
+            self.software_tree.insert("", "end", iid=str(i), values=(self.t("はい") if a.get("Include",False) else self.t("いいえ"),a.get("Name",""),a.get("Version",""),a.get("Publisher",""),a.get("InstallLocation","")))
         included = sum(1 for r in self.payload["system"].get("software", []) if r.get("Include",False))
-        self.software_page_label.configure(text=f"検索結果 {len(rows):,} 件 / 全アプリ {len(self.payload['system'].get('software', [])):,} 件 / 選択 {included:,} 件 / ページ {self.software_page+1}/{pages}（1ページ {SOFTWARE_PAGE_SIZE} 件）")
+        self.software_page_label.configure(text=self.t(f"検索結果 {len(rows):,} 件 / 全アプリ {len(self.payload['system'].get('software', [])):,} 件 / 選択 {included:,} 件 / ページ {self.software_page+1}/{pages}（1ページ {SOFTWARE_PAGE_SIZE} 件）"))
 
     def _reset_software_page(self):
         self.software_page = 0
@@ -1159,7 +1159,7 @@ class ReviewWindow(Toplevel):
             row = self.software_rows[int(item)]
             row["Include"] = not row.get("Include", False)
             vals = list(self.software_tree.item(item, "values"))
-            vals[0] = "はい" if row["Include"] else "いいえ"
+            vals[0] = self.t("はい") if row["Include"] else self.t("いいえ")
             self.software_tree.item(item, values=vals)
         except (IndexError, ValueError):
             return
@@ -1257,14 +1257,14 @@ class ReviewWindow(Toplevel):
         self.folder_tree.delete(*self.folder_tree.get_children())
         self.folder_rows = self._visible_folder_rows()
         for i, r in enumerate(self.folder_rows):
-            self.folder_tree.insert("", "end", iid=str(i), values=("はい" if r.get("Include",False) else "いいえ",r.get("Drive",""),r.get("Path",""),r.get("Depth",0)))
+            self.folder_tree.insert("", "end", iid=str(i), values=(self.t("はい") if r.get("Include",False) else self.t("いいえ"),r.get("Drive",""),r.get("Path",""),r.get("Depth",0)))
         query = self.folder_search_var.get().strip().casefold()
         total = len(self.payload["folders"])
         if query:
             total = sum(1 for r in self.payload["folders"] if query in r["Path"].casefold() or query in r["Drive"].casefold())
         pages = max(1, (total + FOLDER_PAGE_SIZE - 1) // FOLDER_PAGE_SIZE)
         included = sum(1 for r in self.payload["folders"] if r.get("Include",False))
-        self.folder_page_label.configure(text=f"検索結果 {total:,} / 選択 {included:,} / {self.folder_page+1}/{pages}")
+        self.folder_page_label.configure(text=self.t(f"検索結果 {total:,} / 選択 {included:,} / {self.folder_page+1}/{pages}"))
 
     def _reset_folder_page(self):
         self.folder_page = 0
@@ -1280,7 +1280,7 @@ class ReviewWindow(Toplevel):
         try:
             row = self.folder_rows[int(item)]
             row["Include"] = not row.get("Include", False)
-            vals = list(self.folder_tree.item(item, "values")); vals[0] = "はい" if row["Include"] else "いいえ"
+            vals = list(self.folder_tree.item(item, "values")); vals[0] = self.t("はい") if row["Include"] else self.t("いいえ")
             self.folder_tree.item(item, values=vals)
         except (IndexError, ValueError):
             return
@@ -1306,7 +1306,7 @@ class ReviewWindow(Toplevel):
         self.file_tree.delete(*self.file_tree.get_children())
         self.file_page_rows = self._visible_file_rows()
         for i, r in enumerate(self.file_page_rows):
-            self.file_tree.insert("", "end", iid=str(i), values=("はい" if r.get("Include") else "いいえ", r["Name"], r["Extension"], format_bytes(r["SizeBytes"]), r["Modified"], r["PrivacyCandidate"], r["Path"]))
+            self.file_tree.insert("", "end", iid=str(i), values=(self.t("はい") if r.get("Include") else self.t("いいえ"), r["Name"], r["Extension"], format_bytes(r["SizeBytes"]), r["Modified"], r["PrivacyCandidate"], r["Path"]))
         self._update_file_hint()
         query = self.file_search_var.get().strip().casefold()
         total = len(self.payload["files"])
@@ -1314,7 +1314,7 @@ class ReviewWindow(Toplevel):
             total = sum(1 for r in self.payload["files"] if query in r["Name"].casefold() or query in r["Path"].casefold() or query in r["Extension"].casefold())
         pages = max(1, (total + FILE_PAGE_SIZE - 1) // FILE_PAGE_SIZE)
         if hasattr(self, "file_page_label"):
-            self.file_page_label.configure(text=f"検索結果 {total:,} / 選択 {sum(1 for r in self.payload['files'] if r.get('Include',False)):,} / {self.file_page+1}/{pages}")
+            self.file_page_label.configure(text=self.t(f"検索結果 {total:,} / 選択 {sum(1 for r in self.payload['files'] if r.get('Include',False)):,} / {self.file_page+1}/{pages}"))
 
     def _reset_file_page(self):
         self.file_page = 0
@@ -1329,7 +1329,7 @@ class ReviewWindow(Toplevel):
             total = len(self.payload["files"])
             shown = len(self.file_page_rows)
             included = sum(1 for r in self.payload["files"] if r.get("Include"))
-            self.file_hint.configure(text=f"表示 {shown:,} 件 / 全体 {total:,} 件 / 現在の選択 {included:,} 件。検索・ページ移動で全件を確認できます。1ページ {FILE_PAGE_SIZE} 件です。")
+            self.file_hint.configure(text=self.t(f"表示 {shown:,} 件 / 全体 {total:,} 件 / 現在の選択 {included:,} 件。検索・ページ移動で全件を確認できます。1ページ {FILE_PAGE_SIZE} 件です。"))
 
     def _toggle_selected_file(self, event=None):
         item = self.file_tree.identify_row(event.y) if event else None
