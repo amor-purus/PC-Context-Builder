@@ -1358,38 +1358,50 @@ class ReviewWindow(Toplevel):
         warning_total = len(self.payload.get("warnings", [])) + len(self.payload.get("scan_warnings", []))
         self._category_check(f, "warnings", f"スキャン警告を梱包する（{warning_total:,} 件）")
         text = (
-            f"スキップされた項目：{counts['skipped']:,} 件\n"
-            f"アクセス／メタデータ取得エラー：{counts['errors']:,} 件\n"
-            f"ファイル：{counts['files']:,} 件\nフォルダー：{counts['folders']:,} 件\n"
-            f"スキャン状態：{self.payload.get('filesystem_status')}\n\n"
-            "OS・アプリケーションの保護領域、隠し／システムフォルダー、資格情報候補のフォルダー、再解析ポイントは走査しません。"
+            f"{self.t('スキップされた項目：')}{counts['skipped']:,} {self.t('件')}\n"
+            f"{self.t('アクセス／メタデータ取得エラー：')}{counts['errors']:,} {self.t('件')}\n"
+            f"{self.t('ファイル：')}{counts['files']:,} {self.t('件')}\n{self.t('フォルダー：')}{counts['folders']:,} {self.t('件')}\n"
+            f"{self.t('スキャン状態：')}{self.payload.get('filesystem_status')}\n\n"
+            f"{self.t('OS・アプリケーションの保護領域、隠し／システムフォルダー、資格情報候補のフォルダー、再解析ポイントは走査しません。')}"
         )
         ttk.Label(f, text=text, justify="left").pack(anchor="nw", fill="x", pady=12)
         ttk.Label(f, text="スキャン警告CSVにはドライブ文字とエラー種別だけを記録します。個別のファイルパスは出力しません。", foreground="#a05a00", wraplength=950).pack(anchor="w")
 
     def _approve(self):
         if not any(v.get() for v in self.categories.values()):
-            messagebox.showwarning("梱包対象なし", "少なくとも1つのカテゴリを選択してください。", parent=self)
+            messagebox.showwarning(self.t("梱包対象なし"), self.t("少なくとも1つのカテゴリを選択してください。"), parent=self)
             return
         selected_file_count = sum(1 for r in self.payload["files"] if r.get("Include")) if self.categories["files"].get() else 0
+        software_count = sum(1 for r in self.payload["system"].get("software", []) if r.get("Include", False)) if self.categories["software"].get() else 0
+        drive_count = len(self.payload["system"].get("drives", [])) if self.categories["drives"].get() else 0
+        folder_count = sum(1 for r in self.payload["folders"] if r.get("Include")) if self.categories["folders"].get() else 0
         summary = [
-            f"PC基本情報：{'含む' if self.categories['system'].get() else '除外'}",
-            f"ソフトウェア：{sum(1 for r in self.payload['system'].get('software',[]) if r.get('Include',False)) if self.categories['software'].get() else 0:,} 件",
-            f"ストレージ：{len(self.payload['system'].get('drives',[])) if self.categories['drives'].get() else 0:,} 件",
-            f"フォルダー：{sum(1 for r in self.payload['folders'] if r.get('Include')) if self.categories['folders'].get() else 0:,} 件",
-            f"ファイルメタデータ：{selected_file_count:,} 件",
-            f"警告：{'含む' if self.categories['warnings'].get() else '除外'}",
-            f"除外集計：{'含む' if self.categories['security'].get() else '除外'}",
+            f"{self.t('PC基本情報')}：{self.t('含む') if self.categories['system'].get() else self.t('除外')}",
+            f"{self.t('ソフトウェア')}：{software_count:,} {self.t('件')}",
+            f"{self.t('ストレージ')}：{drive_count:,} {self.t('件')}",
+            f"{self.t('フォルダー')}：{folder_count:,} {self.t('件')}",
+            f"{self.t('ファイルメタデータ')}：{selected_file_count:,} {self.t('件')}",
+            f"{self.t('警告')}：{self.t('含む') if self.categories['warnings'].get() else self.t('除外')}",
+            f"{self.t('除外集計')}：{self.t('含む') if self.categories['security'].get() else self.t('除外')}",
         ]
-        msg = "以下の内容でAI向けZIPを作成します。\n\n" + "\n".join(summary) + "\n\nZIP内のファイル名・パス・メタデータは閲覧可能です。個人情報が含まれていないことを確認しましたか？"
-        if not messagebox.askyesno("最終確認", msg, parent=self):
+        msg = self.t("以下の内容でAI向けZIPを作成します。") + "\n\n" + "\n".join(summary) + "\n\n" + self.t("ZIP内のファイル名・パス・メタデータは閲覧可能です。個人情報が含まれていないことを確認しましたか？")
+        if not messagebox.askyesno(self.t("最終確認"), msg, parent=self):
             return
         sensitive_included = sum(1 for r in self.payload["files"] if r.get("Include") and r.get("PrivacyCandidate") == "Yes") if self.categories["files"].get() else 0
         if sensitive_included:
-            msg += f"\n\n警告：機微候補として検出されたファイル名が {sensitive_included:,} 件含まれます。必要なものだけを残してください。"
-            if not messagebox.askyesno("機微候補の最終確認", msg + "\n\nこの内容で続行しますか？", parent=self):
+            warning = f"\n\n{self.t('警告：機微候補として検出されたファイル名が')} {sensitive_included:,} {self.t('件')}"
+            if self.language == "zh":
+                warning += "。请仅保留确实需要的项目。"
+            elif self.language == "ko":
+                warning += " 포함됩니다. 필요한 항목만 남겨 주세요."
+            elif self.language == "en":
+                warning += " sensitive-candidate file names are included. Keep only what you need."
+            else:
+                warning += " 含まれます。必要なものだけを残してください。"
+            msg += warning
+            if not messagebox.askyesno(self.t("機微候補の最終確認"), msg + "\n\n" + self.t("この内容で続行しますか？"), parent=self):
                 return
-        self.result = {"categories": {k:v.get() for k,v in self.categories.items()}}
+        self.result = {"categories": {k:v.get() for k,v in self.categories.items()}, "language": self.language}
         result = self.result
         if self.on_confirm(result, self):
             self._close_review()
