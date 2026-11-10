@@ -1,17 +1,19 @@
 AI PC Intelligence - Verification status
-Latest release candidate: v1.0.8
+Latest released version: v1.0.8
 Updated: 2026-11-10
 
-v1.0.8 preparation — Phase 1 security-hardening branch verification:
+v1.0.8 release verification — Phase 1 security hardening:
+- Release state: published GitHub Release and v1.0.8 tag (2026-11-10).
+- Release URL: https://github.com/yanchengz685-bot/AI-PC-Intelligence/releases/tag/v1.0.8
+- Tag v1.0.8 and main both point to release commit bad2f424f0b0edecc017d8655e32b718d86c7a44.
 - Test environment: Windows 11 / CPython 3.14 x64 (user-reported).
 - check_tool.bat synthetic self-test: PASS (SELF-TEST PASS).
 - Main GUI startup: PASS.
 - Review window open/close: PASS.
 - C: drive scan: completed normally (user-reported).
 - No PC Knowledge Pack was generated during this security-hardening verification.
-- Scope: this target-device check exercised the Phase 1 security-hardening code branch before this release-preparation PR's version/documentation-only changes. No scanning or export logic is changed by the v1.0.8 version bump.
-- Post-merge GitHub Actions on main commit 8b4b7ece46ca8fd8849ece6760d1c8b8be11e1f3: Windows Runner, CPython 3.14 x64, syntax compilation PASS, built-in self-test PASS (workflow run #10).
-- Release state: v1.0.8 is a release candidate only. A version tag and GitHub Release have not yet been created.
+- Scope: this target-device check exercised the Phase 1 security-hardening code branch before the release-preparation PR's version/documentation-only changes. No scanning or export logic was changed by the v1.0.8 version bump.
+- Post-release GitHub Actions on main release commit bad2f424f0b0edecc017d8655e32b718d86c7a44: Windows Runner, CPython 3.14 x64 setup PASS, syntax compilation PASS, built-in self-test PASS (workflow run #42768192542).
 
 Historical baseline: AI PC Intelligence v1.0.7
 Date: 2026-11-09
