@@ -1,3 +1,9 @@
+## Localization regression follow-up — 2026-11-11
+- Source review found that the dynamic translation regex for the generated README sentence “PC profile was not selected for inclusion.” was over-escaped and did not match the actual generated line. This could leave that sentence in English for zh/ja/ko output when the PC profile category was not selected.
+- Fixed the regex in `i18n.py` commit `9dff0a1ac8a1d691195b7dd89d812dca8dd24f12`.
+- Added built-in self-test assertions for zh/ja/ko/en in `main.py` commit `092eeb47cc464c5ab9355a5c5897be5508b2a8c5`.
+- CI status for the latest code/doc head has not been confirmed through the available PR-run and combined-status queries. Do not treat this source-level correction as CI-verified until a fresh Windows Actions result is observed.
+
 ## Final target-device acceptance — 2026-11-11
 - User confirmation: the Windows 11 target-device UI is now satisfactory and no remaining issues were found. The previously pending main-window scrollbar/scrolling and responsive text-reflow behavior are accepted as resolved.
 - GitHub issue [#8](https://github.com/yanchengz685-bot/PC-Context-Builder/issues/8) was closed as completed after this confirmation.
