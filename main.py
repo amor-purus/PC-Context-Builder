@@ -1952,6 +1952,10 @@ def self_test():
     assert all(tr(key, "zh") == value for key, value in overview_label_zh.items())
     assert tr("Collection method: local read-only inventory", "zh") == "收集方式：本地只读清单"
     assert tr("- PC profile: included (1 records)", "en") == "- PC profile: included (1 records)"
+    assert tr("- PC profile was not selected for inclusion.", "zh") == "- 未选择包含电脑基本信息。"
+    assert tr("- PC profile was not selected for inclusion.", "ja") == "- PC基本情報は収録対象に選択されていません。"
+    assert tr("- PC profile was not selected for inclusion.", "ko") == "- PC 프로필은 포함하도록 선택되지 않았습니다."
+    assert tr("- PC profile was not selected for inclusion.", "en") == "- PC profile was not selected for inclusion."
 
     assert is_sensitive_name(".env")
     assert is_sensitive_name("my_api_key.txt")
