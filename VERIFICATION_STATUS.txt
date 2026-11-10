@@ -7,7 +7,8 @@ v1.0.9 branding candidate — not yet released:
 - Current published release remains v1.0.8 under the former name AI PC Intelligence.
 - Candidate code renames the GUI and context-pack output paths/names to PC Context Builder / PC_Context_Pack.
 - Intended scope is branding, output naming, generated package documentation, and regression expectations only; scan collection and privacy-filter logic are unchanged.
-- Windows CI, Windows 11 GUI validation, and a synthetic ZIP export check for the new name are pending.
+- GitHub Actions Windows CI: PASS on candidate commit 539efb2500e519b45f7bc730e5dbdb14458d3498 (workflow run #42770007064), including CPython 3.14 x64 setup, syntax compilation, and built-in self-test with synthetic ZIP naming/path assertions.
+- Windows 11 target-device GUI startup, real scan, and user-side ZIP export verification: pending.
 
 v1.0.8 release verification — Phase 1 security hardening:
 - Release state: published GitHub Release and v1.0.8 tag (2026-11-10).
