@@ -1,4 +1,7 @@
-# User-generated PC inventory exports (sensitive; never commit)
+# User-generated PC context exports (sensitive; never commit)
+PC_Context_Pack_*.zip
+PC_Context_Pack_/
+# Legacy v1.0.8 and earlier export names remain ignored
 AI_PC_Knowledge_Pack_*.zip
 AI_PC_Knowledge_Pack_*/
 *_Knowledge_Pack_*.zip
