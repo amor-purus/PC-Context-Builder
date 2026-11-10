@@ -2183,6 +2183,22 @@ def self_test():
                 localized_names = set(localized_zip.namelist())
                 assert "PC_Context_Pack/00_README_FOR_AI.md" in localized_names
                 assert "PC_Context_Pack/04_FILE_INDEX/files.csv" in localized_names
+
+            # Exercise the full ZIP/README path when the PC profile category is
+            # omitted, not only the translation helper in isolation.
+            no_profile_choices = {"categories": dict(choices["categories"], system=False)}
+            no_profile_path, _, _ = build_package(fake, no_profile_choices, td, language)
+            with zipfile.ZipFile(no_profile_path) as no_profile_zip:
+                no_profile_readme = no_profile_zip.read(
+                    "PC_Context_Pack/00_README_FOR_AI.md"
+                ).decode("utf-8-sig")
+            expected_no_profile_line = {
+                "zh": "- 未选择包含电脑基本信息。",
+                "ja": "- PC基本情報は収録対象に選択されていません。",
+                "ko": "- PC 프로필은 포함하도록 선택되지 않았습니다.",
+                "en": "- PC profile was not selected for inclusion.",
+            }[language]
+            assert expected_no_profile_line in no_profile_readme, (language, expected_no_profile_line)
         assert counts["files"] == 1
         with zipfile.ZipFile(path) as z:
             system_text = z.read("PC_Context_Pack/01_PC_PROFILE/system_profile.json").decode("utf-8-sig")
