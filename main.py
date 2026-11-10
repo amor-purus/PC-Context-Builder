@@ -28,7 +28,7 @@ from tkinter import ttk
 
 from i18n import (
     LANGUAGE_CODES_BY_NAME, LANGUAGE_NAMES, LANGUAGE_ORDER,
-    load_language_preference, save_language_preference, tr, translate_widget_tree,
+    load_language_preference, save_language_preference, tr, translate_widget_tree, ui_font,
 )
 
 APP_NAME = "PC Context Builder"
@@ -1035,7 +1035,7 @@ class ReviewWindow(Toplevel):
 
         top = ttk.Frame(outer, padding=12)
         top.grid(row=0, column=0, sticky="ew")
-        ttk.Label(top, text="スキャン結果のレビュー", font=("Yu Gothic UI", 16, "bold")).pack(anchor="w")
+        ttk.Label(top, text="スキャン結果のレビュー", font=ui_font(self.language, 16, "bold")).pack(anchor="w")
         counts = self.payload["filesystem_counts"]
         ttk.Label(top, text=f"ファイル {counts['files']:,} 件 / フォルダー {counts['folders']:,} 件 / 除外 {counts['skipped']:,} 件 / エラー {counts['errors']:,} 件", foreground="#555").pack(anchor="w", pady=(4,0))
         if self.payload.get("filesystem_status") != "completed":
@@ -1470,7 +1470,7 @@ class DriveSelection(Toplevel):
         body = ttk.Frame(self, padding=18)
         self.container = body
         body.pack(fill="both", expand=True)
-        ttk.Label(body, text="スキャンするローカル固定ドライブを選択してください。", font=("Yu Gothic UI", 11, "bold")).pack(anchor="w")
+        ttk.Label(body, text="スキャンするローカル固定ドライブを選択してください。", font=ui_font(self.language, 11, "bold")).pack(anchor="w")
         ttk.Label(body, text="ローカル固定ドライブのみを表示します。ネットワークドライブやリムーバブルドライブは通常対象外です。USB SSDなどでもWindowsが固定ドライブとして報告する場合は表示されます。", wraplength=460).pack(anchor="w", pady=(5,12))
         for drive in self.drives:
             ttk.Checkbutton(body, text=drive, variable=self.vars[drive]).pack(anchor="w", pady=2)
@@ -1616,7 +1616,7 @@ class App:
         outer.pack(fill="both", expand=True)
         header = ttk.Frame(outer)
         header.pack(fill="x")
-        ttk.Label(header, text="PC Context Builder", font=("Yu Gothic UI", 24, "bold")).pack(side="left", anchor="w")
+        ttk.Label(header, text="PC Context Builder", font=ui_font(self.language, 24, "bold")).pack(side="left", anchor="w")
         language_bar = ttk.Frame(header)
         language_bar.pack(side="right", anchor="e", padx=(8,0), pady=4)
         ttk.Label(language_bar, text="言語 / Language").pack(side="left", padx=(0,6))
@@ -1628,7 +1628,7 @@ class App:
         )
         self.language_combo.pack(side="left")
         self.language_combo.bind("<<ComboboxSelected>>", self._change_language)
-        ttk.Label(outer, text="Windows PCの環境情報を収集し、確認後にAIアシスタント向けコンテキストパッケージを作成します。", font=("Yu Gothic UI", 10)).pack(anchor="w", pady=(4,14))
+        ttk.Label(outer, text="Windows PCの環境情報を収集し、確認後にAIアシスタント向けコンテキストパッケージを作成します。", font=ui_font(self.language, 10), wraplength=820).pack(anchor="w", pady=(4,14))
         tags = ttk.Frame(outer); tags.pack(anchor="w", pady=(0,14))
         ttk.Label(tags, text="ローカル処理", relief="solid", padding=(8,4)).pack(side="left", padx=(0,6))
         ttk.Label(tags, text="読み取り専用", relief="solid", padding=(8,4)).pack(side="left", padx=6)
@@ -1652,7 +1652,7 @@ class App:
         self.start_btn.pack(side="left")
         self.cancel_btn = ttk.Button(actions, text="スキャンを停止", command=self.cancel_scan, state="disabled")
         self.cancel_btn.pack(side="left", padx=8)
-        ttk.Label(outer, textvariable=self.status, font=("Yu Gothic UI", 10, "bold")).pack(anchor="w", pady=(8,2))
+        ttk.Label(outer, textvariable=self.status, font=ui_font(self.language, 10, "bold")).pack(anchor="w", pady=(8,2))
         ttk.Label(outer, textvariable=self.progress, foreground="#555").pack(anchor="w")
         self.pb = ttk.Progressbar(outer, mode="indeterminate")
         self.pb.pack(fill="x", pady=8)
