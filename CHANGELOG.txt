@@ -1,11 +1,13 @@
-AI PC Intelligence v1.0.8 — release candidate, not yet published (2026-11-10)
+AI PC Intelligence v1.0.8 — Released 2026-11-10
 - Neutralize spreadsheet formula-triggering prefixes in CSV text cells while preserving numeric values.
 - Match sensitive directories by complete path components, including multi-component entries such as .config/gcloud.
 - Exclude common cloud-sync directory names and roots exposed through Windows environment variables.
 - Add regression checks for formula-like CSV cells, sensitive path boundaries, named OneDrive folders, and custom OneDrive roots.
 - Windows 11 target-device verification of the Phase 1 code branch (2026-11-10, user-reported): check_tool.bat SELF-TEST PASS; main GUI started normally; Review window opened and closed normally; C: drive scan completed normally.
 - No PC Knowledge Pack was generated during that security-hardening verification.
-- GitHub Actions Windows Runner syntax compilation and built-in self-test passed on the merged Phase 1 commit. The v1.0.8 version-metadata candidate is being checked separately in this release-preparation PR; no v1.0.8 tag or GitHub Release has been published yet.
+- GitHub Actions Windows Runner checks passed on the release commit: CPython 3.14 x64 setup, syntax compilation, and built-in self-test (workflow run #42768192542).
+- GitHub Release published: https://github.com/yanchengz685-bot/AI-PC-Intelligence/releases/tag/v1.0.8
+- Tag v1.0.8 points to the v1.0.8 release commit on main.
 
 AI PC Intelligence v1.0.7
 - Removed transient() and grab_set() from DriveSelection and ReviewWindow to avoid Windows Tk parent/child activation deadlocks and taskbar restore failures.
