@@ -23,7 +23,7 @@ import traceback
 import zipfile
 from ctypes import wintypes
 from pathlib import Path
-from tkinter import Tk, Toplevel, StringVar, BooleanVar, filedialog, messagebox
+from tkinter import Tk, Toplevel, Canvas, StringVar, BooleanVar, filedialog, messagebox
 from tkinter import ttk
 
 from app_config import APP_NAME
@@ -1523,12 +1523,62 @@ class App:
         self.status = StringVar(value=tr("スキャン開始前です。", self.language))
         self.progress = StringVar(value="")
         self._build()
+        # One application-wide binding routes wheel input only to the main
+        # canvas under the pointer. Review/drive dialogs keep their own behavior.
+        self.root.bind_all("<MouseWheel>", self._on_main_mousewheel, add="+")
         self.root.protocol("WM_DELETE_WINDOW", self._request_close)
         self.root.after(100, self._activate_main_window)
         self.root.after(200, self._poll)
 
     def t(self, text):
         return tr(text, self.language)
+
+    def _update_main_scrollregion(self, _event=None):
+        """Keep the canvas scrollable region synchronized with its content."""
+        try:
+            bounds = self.main_canvas.bbox("all")
+            if bounds:
+                self.main_canvas.configure(scrollregion=bounds)
+        except Exception:
+            pass
+
+    def _resize_main_scroll_content(self, event):
+        """Keep the embedded frame as wide as the visible canvas."""
+        try:
+            self.main_canvas.itemconfigure(self._main_canvas_window, width=event.width)
+            self._update_main_scrollregion()
+        except Exception:
+            pass
+
+    def _on_main_mousewheel(self, event):
+        """Scroll the main page only when the pointer is over its content canvas."""
+        canvas = getattr(self, "main_canvas", None)
+        if canvas is None:
+            return
+        try:
+            if not canvas.winfo_exists():
+                return
+            target = self.root.winfo_containing(event.x_root, event.y_root)
+            if target is None or target.winfo_toplevel() is not self.root:
+                return
+            # Preserve native wheel behavior for the language selector.
+            if target.winfo_class() == "TCombobox":
+                return
+            node = target
+            while node is not None and node is not canvas:
+                node = getattr(node, "master", None)
+            if node is not canvas:
+                return
+            delta = int(getattr(event, "delta", 0) or 0)
+            if not delta:
+                return
+            units = int(-delta / 120)
+            if units == 0:
+                units = -1 if delta > 0 else 1
+            canvas.yview_scroll(units, "units")
+            return "break"
+        except Exception:
+            return
 
     def _change_language(self, _event=None):
         selected = LANGUAGE_CODES_BY_NAME.get(self.language_var.get())
@@ -1611,9 +1661,26 @@ class App:
                 old_container.destroy()
             except Exception:
                 pass
-        self.container = ttk.Frame(self.root, padding=20)
-        outer = self.container
-        outer.pack(fill="both", expand=True)
+        self.container = ttk.Frame(self.root)
+        self.container.pack(fill="both", expand=True)
+        self.container.rowconfigure(0, weight=1)
+        self.container.columnconfigure(0, weight=1)
+
+        self.main_canvas = Canvas(self.container, highlightthickness=0, borderwidth=0)
+        self.main_canvas.grid(row=0, column=0, sticky="nsew")
+        self.main_scrollbar = ttk.Scrollbar(
+            self.container, orient="vertical", command=self.main_canvas.yview
+        )
+        self.main_scrollbar.grid(row=0, column=1, sticky="ns")
+        self.main_canvas.configure(yscrollcommand=self.main_scrollbar.set)
+
+        self.main_scroll_content = ttk.Frame(self.main_canvas, padding=20)
+        self._main_canvas_window = self.main_canvas.create_window(
+            (0, 0), window=self.main_scroll_content, anchor="nw"
+        )
+        self.main_canvas.bind("<Configure>", self._resize_main_scroll_content)
+        self.main_scroll_content.bind("<Configure>", self._update_main_scrollregion)
+        outer = self.main_scroll_content
         header = ttk.Frame(outer)
         header.pack(fill="x")
         ttk.Label(header, text="PC Context Builder", font=ui_font(self.language, 24, "bold")).pack(side="left", anchor="w")
@@ -2104,6 +2171,16 @@ def self_test():
     assert "values=(self.t(label), value)" in overview_source
     app_build_source = inspect.getsource(App._build)
     assert '"• " + self.t(line)' in app_build_source
+    assert "self.main_canvas = Canvas(self.container" in app_build_source
+    assert "self.main_scrollbar = ttk.Scrollbar(" in app_build_source
+    assert "yscrollcommand=self.main_scrollbar.set" in app_build_source
+    assert "create_window(" in app_build_source and "window=self.main_scroll_content" in app_build_source
+    app_mousewheel_source = inspect.getsource(App._on_main_mousewheel)
+    assert "winfo_containing(event.x_root, event.y_root)" in app_mousewheel_source
+    assert 'winfo_class() == "TCombobox"' in app_mousewheel_source
+    assert 'canvas.yview_scroll(units, "units")' in app_mousewheel_source
+    app_init_source = inspect.getsource(App.__init__)
+    assert 'bind_all("<MouseWheel>", self._on_main_mousewheel, add="+")' in app_init_source
     files_tab = source.split("    def _build_files_tab(self):", 1)[1].split("    def _visible_folder_rows(self):", 1)[0]
     assert "file_table = ttk.Frame(f)" in files_tab
     assert "self.file_tree = ttk.Treeview(file_table," in files_tab
