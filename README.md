@@ -1,4 +1,4 @@
-# PC Context Builder v1.0.9
+# PC Context Builder v1.1.0
 
 **Your PC. Understood by AI.**
 
@@ -13,6 +13,7 @@ PC Context Builder 是一个面向 Windows 11 的本地电脑环境采集与上�
 - **审核后导出**：在 GUI 中检查扫描结果，逐项选择输出类别，再生成 ZIP。
 - **AI 友好结构**：输出系统配置、存储、可选软件与文件索引、扫描报告和隐私说明。
 - **隐私保护**：敏感目录、凭据候选、常见云同步目录排除；CSV 文本字段进行公式注入防护。
+- **四语言界面**：支持简体中文、日本語、한국어和 English；可自动检测系统语言，也可在主界面切换并保存偏好。审核窗口、提示框及导出资料包中的 AI 使用说明会跟随所选语言。
 
 ## 环境要求
 
@@ -25,7 +26,7 @@ PC Context Builder 是一个面向 Windows 11 的本地电脑环境采集与上�
 
 1. 解压项目源码到本地目录。
 2. 双击 `check_tool.bat`，确认显示 `SELF-TEST PASS`。
-3. 双击 `start.bat` 启动 PC Context Builder。
+3. 双击 `start.bat` 启动 PC Context Builder。主界面右上角可切换简体中文、日本語、한국어或 English；选择会保存到本机，下次启动继续使用。
 4. 选择需要扫描的本地固定驱动器。
 5. 在审核页面检查各类别。软件、文件夹、文件明细默认不纳入 ZIP。
 6. 只选择需要提供给 AI 的信息，并执行最终确认。
@@ -65,11 +66,14 @@ GitHub Actions 在 Windows runner 上执行语法编译和内置 self-test。CI 
 ## 版本状态
 
 - **最新正式发布版本：** v1.0.8（原产品名 AI PC Intelligence）
-- **当前品牌更新：** v1.0.9 候选版本，尚未发布；Windows 11 / CPython 3.14 x64 实机验证已由用户报告全部通过（2026-11-10）
+- **当前开发候选：** v1.1.0，多语言界面功能，尚未正式发布。
+- v1.1.0 基于已合并的 PC Context Builder 品牌更新，增加简体中文、日语、韩语和英语界面；支持系统语言检测、手动切换和本机偏好保存。
+- 扫描审核窗口、驱动器选择、确认提示以及导出的 AI 使用说明会采用选定语言。CSV 字段名、JSON 字段名和 ZIP 目录结构继续使用原有稳定格式。
+- v1.0.9 的 Windows 11 / CPython 3.14 x64 实机验证由用户报告全部通过（2026-11-10）。v1.1.0 的 GUI 实机验证仍待目标 Windows 设备确认。
 - v1.0.8 纳入了 Phase 1 安全加固：CSV 公式注入防护、敏感目录多级路径匹配，以及常见云同步目录/同步根目录识别。
-- v1.0.8 的 Windows 11 实机验证记录与 v1.0.7 历史扫描基线见 [VERIFICATION_STATUS.txt](VERIFICATION_STATUS.txt)。
+- 各版本的 CI 与 Windows 实机验证记录见 [VERIFICATION_STATUS.txt](VERIFICATION_STATUS.txt)。
 
-v1.0.9 的改名范围包括应用名称、界面文字、导出 ZIP 文件名及内部目录名称。扫描和隐私过滤逻辑不在本次品牌更新范围内。已发布的 v1.0.8 标签和 Release 保持不变。
+已发布的 v1.0.8 标签和 Release 保持不变。
 
 ## 仓库内容范围
 
