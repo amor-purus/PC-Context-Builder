@@ -1763,7 +1763,23 @@ class App:
             path, counts, size = build_package(self.payload, choices, output, self.language)
             self.status.set(self.t("ZIPの作成と整合性検査が完了しました。"))
             self.progress.set(path)
-            messagebox.showinfo("作成完了", f"AI向けZIPを作成しました。\n\n保存先：{path}\nサイズ：{format_bytes(size)}\n\n収録件数：\n" + "\n".join(f"{k}: {v:,}" for k,v in counts.items()) + "\n\nZIPの中身を確認してからAIアシスタントに共有してください。", parent=dialog_parent)
+            count_labels = {
+                "system": "PC基本情報", "software": "ソフトウェア", "drives": "ストレージ",
+                "folders": "フォルダー", "files": "ファイルメタデータ",
+                "warnings": "警告", "security": "除外集計",
+            }
+            count_lines = [
+                f"{self.t(count_labels.get(key, key))}: {value:,}"
+                for key, value in counts.items()
+            ]
+            success_message = (
+                f"{self.t('AI向けZIPを作成しました。')}\n\n"
+                f"{self.t('保存先：')}{path}\n"
+                f"{self.t('サイズ：')}{format_bytes(size)}\n\n"
+                f"{self.t('収録件数：')}\n" + "\n".join(count_lines) +
+                f"\n\n{self.t('ZIPの中身を確認してからAIアシスタントに共有してください。')}"
+            )
+            messagebox.showinfo(self.t("作成完了"), success_message, parent=dialog_parent)
             return True
         except Exception as exc:
             self.status.set("ZIPの作成に失敗しました。")
