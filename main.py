@@ -940,9 +940,10 @@ def build_package(payload, choices, output_dir, language="en"):
 
 
 class ReviewWindow(Toplevel):
-    def __init__(self, master, payload, on_confirm):
+    def __init__(self, master, payload, on_confirm, language="ja"):
         super().__init__(master)
-        self.title("収集結果の確認と梱包対象の選択")
+        self.language = language
+        self.title(tr("収集結果の確認と梱包対象の選択", self.language))
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
         width = min(1080, max(760, screen_w - 60))
@@ -966,7 +967,7 @@ class ReviewWindow(Toplevel):
         self.file_page = 0
         self.folder_page = 0
         self.software_page = 0
-        self.status_var = StringVar(value="メタデータ一覧を確認してください。")
+        self.status_var = StringVar(value=tr("メタデータ一覧を確認してください。", self.language))
         self._on_close_callback = None
         self._closed = False
         self._build()
@@ -990,6 +991,15 @@ class ReviewWindow(Toplevel):
         except Exception:
             pass
 
+    def set_language(self, language):
+        self.language = language
+        self.title(tr("収集結果の確認と梱包対象の選択", self.language))
+        self.status_var.set(tr("メタデータ一覧を確認してください。", self.language))
+        self._build()
+
+    def t(self, text):
+        return tr(text, self.language)
+
     def set_on_close(self, callback):
         self._on_close_callback = callback
 
@@ -1008,10 +1018,17 @@ class ReviewWindow(Toplevel):
                     pass
 
     def _build(self):
+        old_container = getattr(self, "container", None)
+        if old_container is not None:
+            try:
+                old_container.destroy()
+            except Exception:
+                pass
         # Keep the action footer pinned to the bottom. The prior pack-only layout
         # allowed the expanding Notebook to consume the available height and clip
         # the footer (including the ZIP-creation action) on some Windows layouts.
-        outer = ttk.Frame(self)
+        self.container = ttk.Frame(self)
+        outer = self.container
         outer.pack(fill="both", expand=True)
         outer.columnconfigure(0, weight=1)
         outer.rowconfigure(1, weight=1)
@@ -1037,6 +1054,7 @@ class ReviewWindow(Toplevel):
         ttk.Label(bottom, textvariable=self.status_var).pack(side="left", fill="x", expand=True)
         ttk.Button(bottom, text="閉じる（梱包しない）", command=self._close_review).pack(side="right", padx=5)
         ttk.Button(bottom, text="梱包内容を確認してZIP作成へ", command=self._approve).pack(side="right", padx=5)
+        translate_widget_tree(self.container, self.language)
 
     def _tab(self, name):
         frame = ttk.Frame(self.nb, padding=10)
