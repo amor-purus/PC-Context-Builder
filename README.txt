@@ -1,4 +1,4 @@
-AI PC Intelligence v1.0.7
+AI PC Intelligence v1.0.8
 Windows 11 x64 / CPython 3.14 x64
 
 【目的】
@@ -37,7 +37,13 @@ Windows PCの基本構成、インストール済みソフトウェア、ロー�
 Python標準ライブラリとWindows PowerShell CIMを使用します。外部pipパッケージは不要です。start.bat はCPython 3.14 x64を確認して起動します。
 
 【検証状態】
-v1.0.7はWindows 11実機でGUI操作、PowerShell CIMによる基本情報取得、実ドライブ走査、ZIP作成まで確認済みです。直近の実機スキャンでは3件のC: PermissionErrorがあり、状態は partial_errors でした。詳細は VERIFICATION_STATUS.txt を参照してください。
+v1.0.8にはPhase 1のセキュリティ強化（CSV数式インジェクション対策、複数階層の機微ディレクトリ判定、一般的なクラウド同期ルートの除外）が含まれます。この強化コードは2026-11-10にWindows 11実機で検証され、check_tool.batのSELF-TEST PASS、メイン画面の起動、Review画面の開閉、C:ドライブのスキャン完了を確認しました。この確認ではPC Knowledge Packを生成していません。v1.0.7時点の過去のフルスキャン／ZIP検証記録（C:に3件のPermissionError、partial_errors）はVERIFICATION_STATUS.txtに履歴として残しています。
+
+【v1.0.8】
+- CSVのテキスト項目に含まれる表計算数式トリガーを無効化します。
+- .config/gcloudなど複数階層の機微ディレクトリをパス構成要素単位で除外します。
+- 一般的なクラウド同期フォルダー名とWindows環境変数で認識できる同期ルートを除外します。
+- 上記の動作に対する合成回帰テストを追加しました。
 
 【v1.0.7】
 - DriveSelection / ReviewWindowからtransient()とgrab_set()を削除し、モデルレス構成へ変更しました。
