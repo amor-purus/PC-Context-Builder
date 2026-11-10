@@ -506,6 +506,44 @@ TRANSLATIONS = {
 }
 
 
+
+# Additional message fragments and dynamic README lines.
+EXTRA_TRANSLATIONS = {
+    "zh": {
+        "PC基本情報": "电脑基本信息", "含む": "包含", "除外": "排除",
+        "ファイルメタデータ": "文件元数据", "警告": "警告", "除外集計": "排除项统计",
+        "以下の内容でAI向けZIPを作成します。": "将按以下内容创建 AI 资料 ZIP。",
+        "ZIP内のファイル名・パス・メタデータは閲覧可能です。個人情報が含まれていないことを確認しましたか？": "ZIP 中的文件名、路径和元数据均可被查看。请确认其中不含不应分享的个人信息。",
+        "保存先：": "保存位置：", "サイズ：": "大小：", "収録件数：": "收录数量：",
+        "少なくとも1つのカテゴリを選択してください。": "请至少选择一个类别。",
+        "スキャンを停止しました。": "已停止扫描。",
+    },
+    "ja": {
+        "PC基本情報": "PC基本情報", "含む": "含む", "除外": "除外",
+        "ファイルメタデータ": "ファイルメタデータ", "警告": "警告", "除外集計": "除外集計",
+        "以下の内容でAI向けZIPを作成します。": "以下の内容でAI向けZIPを作成します。",
+        "ZIP内のファイル名・パス・メタデータは閲覧可能です。個人情報が含まれていないことを確認しましたか？": "ZIP内のファイル名・パス・メタデータは閲覧可能です。個人情報が含まれていないことを確認しましたか？",
+        "保存先：": "保存先：", "サイズ：": "サイズ：", "収録件数：": "収録件数：",
+    },
+    "ko": {
+        "PC基本情報": "PC 기본 정보", "含む": "포함", "除外": "제외",
+        "ファイルメタデータ": "파일 메타데이터", "警告": "경고", "除外集計": "제외 항목 집계",
+        "以下の内容でAI向けZIPを作成します。": "다음 내용으로 AI용 ZIP을 만듭니다.",
+        "ZIP内のファイル名・パス・メタデータは閲覧可能です。個人情報が含まれていないことを確認しましたか？": "ZIP 안의 파일 이름, 경로 및 메타데이터는 열람할 수 있습니다. 공유해서는 안 될 개인정보가 포함되지 않았는지 확인하세요.",
+        "保存先：": "저장 위치:", "サイズ：": "크기:", "収録件数：": "포함 항목 수:",
+    },
+    "en": {
+        "PC基本情報": "PC profile", "含む": "Include", "除外": "Exclude",
+        "ファイルメタデータ": "File metadata", "警告": "Warnings", "除外集計": "Exclusion summary",
+        "以下の内容でAI向けZIPを作成します。": "The AI context ZIP will be created with the following contents.",
+        "ZIP内のファイル名・パス・メタデータは閲覧可能です。個人情報が含まれていないことを確認しましたか？": "File names, paths, and metadata in the ZIP will be visible. Have you checked that it contains no personal information you should not share?",
+        "保存先：": "Output folder:", "サイズ：": "Size:", "収録件数：": "Record counts:",
+    },
+}
+for _language, _values in EXTRA_TRANSLATIONS.items():
+    TRANSLATIONS[_language].update(_values)
+
+
 def detect_system_language() -> str:
     """Map the Windows/user locale to one of the four supported languages."""
     try:
