@@ -7,7 +7,7 @@ AI PC Intelligence v1.0.8 — Released 2026-11-10
 - No PC Knowledge Pack was generated during that security-hardening verification.
 - GitHub Actions Windows Runner checks passed on the release commit: CPython 3.14 x64 setup, syntax compilation, and built-in self-test (workflow run #42768192542).
 - GitHub Release published: https://github.com/yanchengz685-bot/AI-PC-Intelligence/releases/tag/v1.0.8
-- Tag v1.0.8 points to the v1.0.8 release commit on main.
+- Tag v1.0.8 points to release commit bad2f424f0b0edecc017d8655e32b718d86c7a44; main also contains the subsequent documentation-only release-status update.
 
 AI PC Intelligence v1.0.7
 - Removed transient() and grab_set() from DriveSelection and ReviewWindow to avoid Windows Tk parent/child activation deadlocks and taskbar restore failures.
