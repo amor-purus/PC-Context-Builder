@@ -1,3 +1,10 @@
+PC Context Builder v1.1.0 — target-device acceptance complete; candidate not yet published (2026-11-11)
+- User-confirmed Windows 11 target-device acceptance: the main-window vertical scrollbar, scrolling behavior, responsive text reflow, and overall UI now work satisfactorily; the user reports no remaining issues.
+- Close [issue #8](https://github.com/yanchengz685-bot/PC-Context-Builder/issues/8) as completed based on the user's final device confirmation.
+- Scrollbar implementation: `705ce0bed06a92386ab170a14613cda9cf78fc3b`; responsive text-reflow implementation: `3595ef70279170094889932b2143ed02141161ce`.
+- Windows Actions run [#42851616727](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42851616727) passed on code-containing PR head `c8522e9c1834f83841a7e9628bcb92344a6ee909`: CPython 3.14 x64 setup, source compilation, and built-in synthetic self-test. This CI evidence is separate from the user's physical-device confirmation.
+- PR #6 remains Open / Draft / unmerged. No merge, v1.1.0 publication, main-branch change, or v1.0.8 release change was made.
+
 PC Context Builder v1.1.0 — multilingual UI candidate, not yet published (2026-11-10; updated 2026-11-11)
 - Fix responsive main-window text wrapping: long descriptions, scan-scope bullets, privacy and important notices, and status/progress text now recalculate wraplength from the Canvas viewport width on resize. Wider windows allow fewer or equal text lines; narrower windows allow more or equal lines.
 - Extend the built-in self-test with monotonic wrap-width checks and source guards for reflow on Canvas resize. The candidate code is in commit `3595ef70279170094889932b2143ed02141161ce`; latest PR head `c8522e9c1834f83841a7e9628bcb92344a6ee909` passed Windows Actions run [#42851616727](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42851616727): CPython 3.14 x64 setup, source compilation, and synthetic self-test. Target-device reflow/scroll verification remains pending.
