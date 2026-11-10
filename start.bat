@@ -1,6 +1,7 @@
 @echo off
 setlocal
 chcp 65001 >nul
+pushd "%~dp0"
 set "PYTHON_EXE=%LOCALAPPDATA%\Programs\Python\Python314\python.exe"
 if not exist "%PYTHON_EXE%" (
   if exist "%ProgramFiles%\Python314\python.exe" set "PYTHON_EXE=%ProgramFiles%\Python314\python.exe"
@@ -18,11 +19,20 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-echo [INFO] Python 3.14 x64 detected. Starting AI PC Intelligence...
+set "APP_NAME="
+for /f "delims=" %%A in ('"%PYTHON_EXE%" -c "from app_config import APP_NAME; print(APP_NAME)"') do set "APP_NAME=%%A"
+if not defined APP_NAME (
+  echo [ERROR] Could not read the application name from app_config.py.
+  popd
+  pause
+  exit /b 1
+)
+echo [INFO] Python 3.14 x64 detected. Starting %APP_NAME%...
 "%PYTHON_EXE%" "%~dp0main.py"
 if errorlevel 1 (
   echo.
-  echo [ERROR] AI PC Intelligence exited with an error.
+  echo [ERROR] %APP_NAME% exited with an error.
   pause
 )
+popd
 endlocal
