@@ -1,3 +1,10 @@
+Unreleased — Phase 1 security/privacy hardening
+- Neutralize spreadsheet formula-triggering prefixes in CSV text cells while preserving numeric values.
+- Match sensitive directories by complete path components, including multi-component entries such as .config/gcloud.
+- Exclude common cloud-sync directory names and roots exposed through Windows environment variables.
+- Add regression checks for formula-like CSV cells, sensitive path boundaries, named OneDrive folders, and custom OneDrive roots.
+- Validation: branch CI and target-device verification are pending; do not treat this change as a released version yet.
+
 AI PC Intelligence v1.0.7
 - Removed transient() and grab_set() from DriveSelection and ReviewWindow to avoid Windows Tk parent/child activation deadlocks and taskbar restore failures.
 - Made DriveSelection and ReviewWindow independent modeless native windows. The main scan button is disabled while a drive selector or review window is open, preventing duplicate scans without an application grab.

@@ -259,7 +259,7 @@ def is_sensitive_dir(name: str, full_path: str = "") -> bool:
     """
     path_parts = [part.casefold() for part in re.split(r"[\\/]+", str(full_path or name)) if part]
     for candidate in SENSITIVE_DIR_NAMES:
-        candidate_parts = [part.casefold() for part in re.split(r"[\\/]+", str(candidate).strip("/\\\\u0020")) if part]
+        candidate_parts = [part.casefold() for part in re.split(r"[\\/]+", str(candidate).strip("/\\ ")) if part]
         if not candidate_parts:
             continue
         width = len(candidate_parts)
@@ -770,7 +770,7 @@ def create_scan_payload(q: queue.Queue, cancel_event: threading.Event, selected_
     q.put(("done", payload))
 
 
-CSV_FORMULA_PREFIX_RE = re.compile(r"^[\\s\\x00-\\x1f\\ufeff\\u200b\\u200c\\u200d]*[=+\\-@]")
+CSV_FORMULA_PREFIX_RE = re.compile(r"^[\s\x00-\x1f\ufeff\u200b\u200c\u200d]*[=+\-@]")
 
 
 def sanitize_csv_cell(value):
@@ -782,7 +782,7 @@ def sanitize_csv_cell(value):
     """
     if not isinstance(value, str):
         return value
-    if value.startswith(("\\t", "\\r", "\\n")) or CSV_FORMULA_PREFIX_RE.match(value):
+    if value.startswith(("\t", "\r", "\n")) or CSV_FORMULA_PREFIX_RE.match(value):
         return "'" + value
     return value
 
@@ -1660,7 +1660,7 @@ def self_test():
 
     # CSV values originating from file names, paths, and registry metadata must
     # not become spreadsheet formulas when opened by common spreadsheet apps.
-    formula_cells = ("=1+1", "+SUM(1,1)", "-1+2", "@SUM(1,1)", "  =1+1", "\\t=1+1", "\\r\\n=1+1", "\\ufeff=1+1")
+    formula_cells = ("=1+1", "+SUM(1,1)", "-1+2", "@SUM(1,1)", "  =1+1", "\t=1+1", "\r\n=1+1", "\ufeff=1+1")
     for value in formula_cells:
         assert sanitize_csv_cell(value) == "'" + value
     for value in ("normal.txt", "2026-11-10T12:00:00+09:00", "ordinary text"):
