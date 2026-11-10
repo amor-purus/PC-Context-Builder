@@ -69,7 +69,7 @@ GitHub Actions 在 Windows runner 上执行语法编译和内置 self-test。CI 
 - **当前开发候选：** v1.1.0，多语言界面功能，尚未正式发布；Windows 11 实机 UI（含滚动与自适应换行）已于 2026-11-11 由用户确认通过，PR #6 仍为 Draft / 未合并。
 - v1.1.0 基于已合并的 PC Context Builder 品牌更新，增加简体中文、日语、韩语和英语界面；支持系统语言检测、手动切换和本机偏好保存。
 - 扫描审核窗口、驱动器选择、确认提示以及导出的 AI 使用说明会采用选定语言。CSV 字段名、JSON 字段名和 ZIP 目录结构继续使用原有稳定格式。
-- v1.0.9 的 Windows 11 / CPython 3.14 x64 实机验证由用户报告全部通过（2026-11-10）。v1.1.0 的 GUI 实机验证仍待目标 Windows 设备确认。
+- v1.0.9 的 Windows 11 / CPython 3.14 x64 实机验证由用户报告全部通过（2026-11-10）。v1.1.0 的 Windows 11 GUI 实机验收（含滚动条、鼠标滚轮与窗口宽度变化时的文字折行）由用户于 2026-11-11 确认通过。
 - v1.0.8 纳入了 Phase 1 安全加固：CSV 公式注入防护、敏感目录多级路径匹配，以及常见云同步目录/同步根目录识别。
 - 各版本的 CI 与 Windows 实机验证记录见 [VERIFICATION_STATUS.txt](VERIFICATION_STATUS.txt)。
 
