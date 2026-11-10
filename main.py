@@ -1792,7 +1792,7 @@ class App:
         )
         self._register_main_wrap_label(note_text, horizontal_inset=80)
         note_text.pack(anchor="w", fill="x")
-        ttk.Label(outer, text=f"v{VERSION} • Python標準ライブラリのみ • Windows 11 x64", foreground="#666").pack(anchor="e", pady=(10,0))
+        ttk.Label(outer, text=f"v{VERSION} • {self.t('Python標準ライブラリのみ')} • Windows 11 x64", foreground="#666").pack(anchor="e", pady=(10,0))
         translate_widget_tree(self.container, self.language)
 
     def start_scan(self):
@@ -1959,6 +1959,10 @@ def self_test():
     assert tr("- PC profile was not selected for inclusion.", "ja") == "- PC基本情報は収録対象に選択されていません。"
     assert tr("- PC profile was not selected for inclusion.", "ko") == "- PC 프로필은 포함하도록 선택되지 않았습니다."
     assert tr("- PC profile was not selected for inclusion.", "en") == "- PC profile was not selected for inclusion."
+    assert tr("Python標準ライブラリのみ", "zh") == "仅使用 Python 标准库"
+    assert tr("Python標準ライブラリのみ", "ja") == "Python標準ライブラリのみ"
+    assert tr("Python標準ライブラリのみ", "ko") == "Python 표준 라이브러리만 사용"
+    assert tr("Python標準ライブラリのみ", "en") == "Python standard library only"
 
     assert is_sensitive_name(".env")
     assert is_sensitive_name("my_api_key.txt")
