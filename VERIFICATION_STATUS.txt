@@ -5,7 +5,7 @@ Updated: 2026-11-10
 v1.0.8 release verification — Phase 1 security hardening:
 - Release state: published GitHub Release and v1.0.8 tag (2026-11-10).
 - Release URL: https://github.com/yanchengz685-bot/AI-PC-Intelligence/releases/tag/v1.0.8
-- Tag v1.0.8 and main both point to release commit bad2f424f0b0edecc017d8655e32b718d86c7a44.
+- Tag v1.0.8 points to release commit bad2f424f0b0edecc017d8655e32b718d86c7a44; main is at fa3f4640765c6af0d1e6e5ae3b4ea251d11f875e and includes a subsequent documentation-only update.
 - Test environment: Windows 11 / CPython 3.14 x64 (user-reported).
 - check_tool.bat synthetic self-test: PASS (SELF-TEST PASS).
 - Main GUI startup: PASS.
