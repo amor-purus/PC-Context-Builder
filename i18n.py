@@ -683,11 +683,14 @@ def _settings_path() -> Path:
 def load_language_preference() -> str:
     try:
         data = json.loads(_settings_path().read_text(encoding="utf-8"))
-        code = data.get("language")
-        if code in LANGUAGE_NAMES:
-            return code
+        if isinstance(data, dict):
+            code = data.get("language")
+            if code in LANGUAGE_NAMES:
+                return code
     except (OSError, ValueError, TypeError):
         pass
+    # Valid JSON can still have an unexpected shape (list, scalar, or null).
+    # Treat it like an unavailable preference and fall back to the system locale.
     return detect_system_language()
 
 
