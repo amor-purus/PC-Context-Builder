@@ -2007,17 +2007,25 @@ def self_test():
             pack_readme = z.read("PC_Context_Pack/00_README_FOR_AI.md").decode("utf-8-sig")
             assert "# PC Context Pack" in pack_readme
             assert "How an AI assistant should use this package" in pack_readme
-        zh_path, _, _ = build_package(fake, choices, td, "zh")
-        with zipfile.ZipFile(zh_path) as z:
-            localized_readme = z.read("PC_Context_Pack/00_README_FOR_AI.md").decode("utf-8-sig")
-            localized_manifest = json.loads(z.read("PC_Context_Pack/06_SCAN_REPORT/manifest.json").decode("utf-8-sig"))
-            assert "# PC 上下文资料包" in localized_readme
-            assert "## 电脑概览" in localized_readme
-            assert "架构版本：" in localized_readme
-            assert localized_manifest["ui_language"] == "zh"
-            assert "ChatGPT" not in pack_readme
-            assert "PC_Context_Pack/00_README_FOR_AI.md" in names
-            assert "PC_Context_Pack/04_FILE_INDEX/files.csv" in names
+        assert "ChatGPT" not in pack_readme
+        assert "PC_Context_Pack/00_README_FOR_AI.md" in names
+        assert "PC_Context_Pack/04_FILE_INDEX/files.csv" in names
+        expected_readme_headings = {
+            "zh": ("# PC 上下文资料包", "## 电脑概览", "架构版本："),
+            "ja": ("# PC コンテキストパック", "## PC概要", "スキーマバージョン："),
+            "ko": ("# PC 컨텍스트 패키지", "## PC 개요", "스키마 버전:"),
+            "en": ("# PC Context Pack", "## PC overview", "Schema version:"),
+        }
+        for language, expected in expected_readme_headings.items():
+            localized_path, _, _ = build_package(fake, choices, td, language)
+            with zipfile.ZipFile(localized_path) as localized_zip:
+                localized_readme = localized_zip.read("PC_Context_Pack/00_README_FOR_AI.md").decode("utf-8-sig")
+                localized_manifest = json.loads(localized_zip.read("PC_Context_Pack/06_SCAN_REPORT/manifest.json").decode("utf-8-sig"))
+                assert all(value in localized_readme for value in expected), (language, expected)
+                assert localized_manifest["ui_language"] == language
+                localized_names = set(localized_zip.namelist())
+                assert "PC_Context_Pack/00_README_FOR_AI.md" in localized_names
+                assert "PC_Context_Pack/04_FILE_INDEX/files.csv" in localized_names
             assert counts["files"] == 1
             system_text = z.read("PC_Context_Pack/01_PC_PROFILE/system_profile.json").decode("utf-8-sig")
             assert "Selected App" in system_text and "Excluded App" not in system_text
