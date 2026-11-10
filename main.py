@@ -1093,7 +1093,8 @@ class ReviewWindow(Toplevel):
         self._category_check(f, "software", f"インストール済みソフトウェア一覧を梱包する（{len(apps):,}件）")
         ttk.Label(f, text="アプリ名・発行元・バージョンを検索できます。初期状態ではすべて除外され、選択した行だけがZIPに入ります。", foreground="#555").pack(anchor="w", pady=4)
         search = ttk.Frame(f); search.pack(fill="x", pady=(0,5))
-        self.software_search_var = StringVar()
+        if not hasattr(self, "software_search_var"):
+            self.software_search_var = StringVar()
         ttk.Label(search, text="アプリ検索：").pack(side="left")
         ent = ttk.Entry(search, textvariable=self.software_search_var, width=36); ent.pack(side="left", padx=4)
         ent.bind("<KeyRelease>", lambda _e: self._reset_software_page())
@@ -1186,7 +1187,8 @@ class ReviewWindow(Toplevel):
         folder_frame = ttk.LabelFrame(f, text=f"フォルダー一覧（{len(folders):,} 件）", padding=5)
         folder_frame.pack(fill="x", pady=(0,6))
         fsearch = ttk.Frame(folder_frame); fsearch.pack(fill="x", pady=(0,4))
-        self.folder_search_var = StringVar()
+        if not hasattr(self, "folder_search_var"):
+            self.folder_search_var = StringVar()
         ttk.Label(fsearch, text="フォルダー検索：").pack(side="left")
         fent = ttk.Entry(fsearch, textvariable=self.folder_search_var, width=36); fent.pack(side="left", padx=4)
         fent.bind("<KeyRelease>", lambda _e: self._reset_folder_page())
@@ -1782,7 +1784,7 @@ class App:
             messagebox.showinfo(self.t("作成完了"), success_message, parent=dialog_parent)
             return True
         except Exception as exc:
-            self.status.set("ZIPの作成に失敗しました。")
+            self.status.set(self.t("ZIPの作成に失敗しました。"))
             messagebox.showerror(self.t("ZIP作成エラー"), f"{type(exc).__name__}: {exc}", parent=dialog_parent)
             return False
 
@@ -1790,6 +1792,13 @@ class App:
 def self_test():
     import tempfile
     import io
+
+    assert tr("PC概要", "zh") == "电脑概况"
+    assert tr("PC概要", "ja") == "PC概要"
+    assert tr("PC概要", "ko") == "PC 개요"
+    assert tr("PC概要", "en") == "PC overview"
+    assert tr("Collection method: local read-only inventory", "zh") == "收集方式：本地只读清单"
+    assert tr("- PC profile: included (1 records)", "en") == "- PC profile: included (1 records)"
 
     assert is_sensitive_name(".env")
     assert is_sensitive_name("my_api_key.txt")
@@ -2067,7 +2076,7 @@ def main():
         self_test()
         return
     if not is_windows():
-        print("Windows 11 only")
+        print(tr("Windows 11 only", load_language_preference()))
         return
     root = Tk()
     try:
