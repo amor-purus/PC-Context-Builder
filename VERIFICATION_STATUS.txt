@@ -1,3 +1,10 @@
+## Software-selection privacy regression — Windows Actions PASS (2026-11-11)
+- Source review found that `build_package()` filtered the optional `browser_summary` by application name only. If two registry entries shared a name but had different versions or publishers, the summary could include metadata associated with an unselected row.
+- The filter now requires an exact `(Name, Version, Publisher)` match against selected software rows. Fix and regression fixture are in `main.py` commit `9e850ea34b4a0d4be2b7de02dd93f674cb7cfa74`; the follow-up fixture syntax correction is `ee330ab387349617ce27e6e9ae2e3776b86b31b4`.
+- The synthetic package includes duplicate application names at versions 1.0 (selected) and 0.9 (not selected), and asserts that version 0.9 is absent from the generated system profile.
+- Windows Actions run [#42857099419](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42857099419) passed on corrected head `ee330ab387349617ce27e6e9ae2e3776b86b31b4`: CPython 3.14 x64 setup, source compilation, and built-in synthetic self-test succeeded.
+- Failed attempt preserved: Windows Actions [#42856905898](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42856905898) failed during `py_compile` because the newly edited synthetic fixture had a malformed list boundary (line 2167); the synthetic self-test was skipped. The fixture was repaired and the next run passed.
+
 ## Source-review follow-up — Windows Actions PASS (2026-11-11)
 - Fixed a missing localization for the main-window footer label “Python standard library only”; zh/ja/ko/en translation and self-test assertions were added. Source commit `c42dd060ec987df3541b548aeb57300eb42435bb`; assertions in `8bd20592b6d23d2305380ae190bddac639234c9f`.
 - Fixed a UI state issue: changing language while the modeless drive selector is open no longer re-enables the main scan button. The selector remains active and a second scan cannot be started from the rebuilt main window. Source commit `2d3f64623720b2c37a221ce03194c58b3ca0d465`; source-guard regression test included in `8bd2059`.
