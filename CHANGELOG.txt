@@ -1,4 +1,5 @@
 PC Context Builder v1.1.0 — multilingual UI candidate, not yet published (2026-11-10)
+- Fix untranslated Japanese text in the main-window scan-scope bullets and review overview table row labels; apply translations before rendering list/table values.
 - Add a four-language interface: Simplified Chinese, Japanese, Korean, and English.
 - Detect the Windows/user locale on first launch; allow manual switching from the main window and persist the selected language in a local settings file.
 - Localize the main window, drive selector, scan review tabs and headings, status text, confirmation dialogs, and ZIP-creation messages.
