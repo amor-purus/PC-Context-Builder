@@ -1433,27 +1433,50 @@ def discover_fixed_drives_fast():
 
 
 class DriveSelection(Toplevel):
-    def __init__(self, master, drives):
+    def __init__(self, master, drives, language="ja"):
         super().__init__(master)
-        self.title("スキャン対象ドライブの選択")
+        self.master_window = master
+        self.drives = list(drives)
+        self.language = language
+        self.title(tr("スキャン対象ドライブの選択", self.language))
         self.resizable(False, False)
         self.result = None
-        self.vars = {}
-        body = ttk.Frame(self, padding=18); body.pack(fill="both", expand=True)
-        ttk.Label(body, text="スキャンするローカル固定ドライブを選択してください。", font=("Yu Gothic UI", 11, "bold")).pack(anchor="w")
-        ttk.Label(body, text="ローカル固定ドライブのみを表示します。ネットワークドライブやリムーバブルドライブは通常対象外です。USB SSDなどでもWindowsが固定ドライブとして報告する場合は表示されます。", wraplength=460).pack(anchor="w", pady=(5,12))
-        for drive in drives:
-            v = BooleanVar(value=True); self.vars[drive] = v
-            ttk.Checkbutton(body, text=drive, variable=v).pack(anchor="w", pady=2)
-        btns = ttk.Frame(body); btns.pack(fill="x", pady=(16,0))
-        ttk.Button(btns, text="キャンセル", command=self._cancel).pack(side="right", padx=(5,0))
-        ttk.Button(btns, text="この範囲でスキャン", command=self._accept).pack(side="right")
+        self.vars = {drive: BooleanVar(value=True) for drive in self.drives}
+        self._build()
         self.protocol("WM_DELETE_WINDOW", self._cancel)
         self.update_idletasks()
         self.geometry(f"+{master.winfo_rootx()+80}+{master.winfo_rooty()+80}")
         # Deliberately modeless at the native-window level. App disables its
         # scan button while this selector is open; no transient/grab lock.
         self.after(100, self._activate_window)
+
+    def t(self, text):
+        return tr(text, self.language)
+
+    def set_language(self, language):
+        self.language = language
+        self.title(self.t("スキャン対象ドライブの選択"))
+        self._build()
+
+    def _build(self):
+        old_container = getattr(self, "container", None)
+        if old_container is not None:
+            try:
+                old_container.destroy()
+            except Exception:
+                pass
+        body = ttk.Frame(self, padding=18)
+        self.container = body
+        body.pack(fill="both", expand=True)
+        ttk.Label(body, text="スキャンするローカル固定ドライブを選択してください。", font=("Yu Gothic UI", 11, "bold")).pack(anchor="w")
+        ttk.Label(body, text="ローカル固定ドライブのみを表示します。ネットワークドライブやリムーバブルドライブは通常対象外です。USB SSDなどでもWindowsが固定ドライブとして報告する場合は表示されます。", wraplength=460).pack(anchor="w", pady=(5,12))
+        for drive in self.drives:
+            ttk.Checkbutton(body, text=drive, variable=self.vars[drive]).pack(anchor="w", pady=2)
+        btns = ttk.Frame(body)
+        btns.pack(fill="x", pady=(16,0))
+        ttk.Button(btns, text="キャンセル", command=self._cancel).pack(side="right", padx=(5,0))
+        ttk.Button(btns, text="この範囲でスキャン", command=self._accept).pack(side="right")
+        translate_widget_tree(self.container, self.language)
 
     def _activate_window(self):
         try:
@@ -1475,7 +1498,7 @@ class DriveSelection(Toplevel):
     def _accept(self):
         selected = [drive for drive, var in self.vars.items() if var.get()]
         if not selected:
-            messagebox.showwarning("対象ドライブなし", "少なくとも1つのドライブを選択してください。", parent=self)
+            messagebox.showwarning(self.t("対象ドライブなし"), self.t("少なくとも1つのドライブを選択してください。"), parent=self)
             return
         self.result = selected
         self.destroy()
