@@ -1,3 +1,10 @@
+## Final target-device acceptance — 2026-11-11
+- User confirmation: the Windows 11 target-device UI is now satisfactory and no remaining issues were found. The previously pending main-window scrollbar/scrolling and responsive text-reflow behavior are accepted as resolved.
+- GitHub issue [#8](https://github.com/yanchengz685-bot/PC-Context-Builder/issues/8) was closed as completed after this confirmation.
+- Scrollbar candidate: `705ce0bed06a92386ab170a14613cda9cf78fc3b`; responsive reflow candidate: `3595ef70279170094889932b2143ed02141161ce`.
+- Windows Actions [#42851616727](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42851616727) passed on PR head `c8522e9c1834f83841a7e9628bcb92344a6ee909`, which includes the responsive reflow code: CPython 3.14 x64 setup, source compilation, and built-in synthetic self-test. CI does not replace the user's separate physical-device confirmation.
+- PR #6 remains Open / Draft / unmerged. v1.1.0 is still an unpublished candidate; main and the formal v1.0.8 release/tag remain unchanged.
+
 PC Context Builder - Verification status
 Latest released version: v1.0.8
 Updated: 2026-11-11
