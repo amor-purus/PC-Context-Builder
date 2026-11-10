@@ -2026,7 +2026,8 @@ def self_test():
                 localized_names = set(localized_zip.namelist())
                 assert "PC_Context_Pack/00_README_FOR_AI.md" in localized_names
                 assert "PC_Context_Pack/04_FILE_INDEX/files.csv" in localized_names
-            assert counts["files"] == 1
+        assert counts["files"] == 1
+        with zipfile.ZipFile(path) as z:
             system_text = z.read("PC_Context_Pack/01_PC_PROFILE/system_profile.json").decode("utf-8-sig")
             assert "Selected App" in system_text and "Excluded App" not in system_text
             files_text = z.read("PC_Context_Pack/04_FILE_INDEX/files.csv").decode("utf-8-sig")
