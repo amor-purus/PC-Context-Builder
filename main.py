@@ -1853,6 +1853,13 @@ def self_test():
         with zipfile.ZipFile(path) as z:
             assert z.testzip() is None
             names = set(z.namelist())
+            assert os.path.basename(path).startswith("PC_Context_Pack_")
+            assert names and all(name.startswith("PC_Context_Pack/") for name in names)
+            assert not any(name.startswith("AI_PC_Knowledge_Pack/") for name in names)
+            pack_readme = z.read("PC_Context_Pack/00_README_FOR_AI.md").decode("utf-8-sig")
+            assert "# PC Context Pack" in pack_readme
+            assert "How an AI assistant should use this package" in pack_readme
+            assert "ChatGPT" not in pack_readme
             assert "PC_Context_Pack/00_README_FOR_AI.md" in names
             assert "PC_Context_Pack/04_FILE_INDEX/files.csv" in names
             assert counts["files"] == 1
