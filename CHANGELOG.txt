@@ -1,3 +1,11 @@
+PC Context Builder v1.1.0 — multilingual UI candidate, not yet published (2026-11-10)
+- Add a four-language interface: Simplified Chinese, Japanese, Korean, and English.
+- Detect the Windows/user locale on first launch; allow manual switching from the main window and persist the selected language in a local settings file.
+- Localize the main window, drive selector, scan review tabs and headings, status text, confirmation dialogs, and ZIP-creation messages.
+- Generate the human-readable AI-facing README inside the ZIP in the selected language and record the UI language in the manifest.
+- Keep JSON field names, CSV headers, ZIP paths, scan collection, privacy filters, and package schema stable.
+- Keep the v1.0.8 release/tag unchanged. This v1.1.0 candidate is not published; Windows GUI verification on the target PC is still required.
+
 PC Context Builder v1.0.9 — branding candidate, not yet published (2026-11-10)
 - Rename the application from AI PC Intelligence to PC Context Builder.
 - Describe the product as a local Windows PC context-pack builder for AI assistants, rather than a PC intelligence/diagnostics system.
