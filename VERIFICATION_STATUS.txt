@@ -9,7 +9,9 @@ v1.1.0 multilingual UI candidate — not yet released:
 - Main window, drive selection, review tabs, review labels, count/status text, confirmation dialogs, and ZIP result dialogs are localized.
 - The human-readable 00_README_FOR_AI.md inside the generated package follows the selected language; manifest.json records ui_language.
 - CSV column names, JSON keys, ZIP paths, scan collection, privacy filters, and privacy defaults remain unchanged.
-- GitHub Actions and built-in self-test verification for this candidate are in progress; target Windows 11 GUI and ZIP export verification have not yet been performed for v1.1.0.
+- GitHub Actions Windows CI: PASS on candidate commit 2774046f6aed6b3169337c76ff451cc421f51a42 (run #42802155690), using CPython 3.14.10 x64; syntax compilation and built-in self-test passed. The synthetic self-test checks the generated README headings and manifest ui_language for zh/ja/ko/en, along with existing ZIP structure and privacy assertions.
+- Locale-appropriate Windows UI fonts are selected for Simplified Chinese, Japanese, Korean, and English.
+- Windows 11 target-device GUI switching, font rendering, scan review, and ZIP export verification have not yet been performed for v1.1.0.
 - v1.1.0 must remain an unpublished candidate until CI passes and target-device verification is completed.
 
 v1.0.9 branding candidate — not yet released:
