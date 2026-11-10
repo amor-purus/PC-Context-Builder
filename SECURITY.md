@@ -2,11 +2,11 @@
 
 ## Application behavior
 
-AI PC Intelligence is designed for local, read-only inventory collection. It does not upload scan data, read user document contents, or modify source files/registry/settings. It emits metadata and system inventory only after user review and explicit confirmation.
+PC Context Builder is designed for local, read-only Windows PC context collection. It does not upload scan data, read user document contents, or modify source files/registry/settings. It emits metadata and system inventory only after user review and explicit confirmation.
 
 ## Sensitive output warning
 
-Generated AI_PC_Knowledge_Pack_*.zip files may contain hardware model identifiers, operating-system details, software inventory (if selected), and other machine metadata. These exports are intentionally excluded from version control. Review output contents before sharing with any service.
+Generated PC_Context_Pack_*.zip files may contain hardware model identifiers, operating-system details, software inventory (if selected), and other machine metadata. These exports are intentionally excluded from version control. Legacy AI_PC_Knowledge_Pack_*.zip exports are also ignored for backward compatibility. Review output contents before sharing with any service.
 
 ## Metadata and CSV handling
 
