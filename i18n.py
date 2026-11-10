@@ -600,6 +600,29 @@ for _language, _values in EXTRA_TRANSLATIONS_3.items():
     TRANSLATIONS[_language].update(_values)
 
 
+
+EXTRA_TRANSLATIONS_4 = {
+    "zh": {
+        "スキャンエラー": "扫描错误", "ブラウザー": "浏览器", "サイズ：": "大小：",
+        "64-bit/不明": "64 位／未知", "ユーザーがスキャンを停止しました。": "用户已停止扫描。",
+    },
+    "ja": {
+        "スキャンエラー": "スキャンエラー", "ブラウザー": "ブラウザー", "サイズ：": "サイズ：",
+        "64-bit/不明": "64-bit／不明", "ユーザーがスキャンを停止しました。": "ユーザーがスキャンを停止しました。",
+    },
+    "ko": {
+        "スキャンエラー": "스캔 오류", "ブラウザー": "브라우저", "サイズ：": "크기:",
+        "64-bit/不明": "64비트 / 알 수 없음", "ユーザーがスキャンを停止しました。": "사용자가 스캔을 중지했습니다.",
+    },
+    "en": {
+        "スキャンエラー": "Scan error", "ブラウザー": "Browser", "サイズ：": "Size:",
+        "64-bit/不明": "64-bit / unknown", "ユーザーがスキャンを停止しました。": "The user stopped the scan.",
+    },
+}
+for _language, _values in EXTRA_TRANSLATIONS_4.items():
+    TRANSLATIONS[_language].update(_values)
+
+
 def detect_system_language() -> str:
     """Map the Windows/user locale to one of the four supported languages."""
     try:
@@ -817,7 +840,12 @@ def _dynamic_translation(text: str, language: str) -> str:
     for pattern, templates in patterns:
         match = re.fullmatch(pattern, text)
         if match:
-            return templates[language].format(**match.groupdict())
+            values = match.groupdict()
+            table = TRANSLATIONS.get(language, {})
+            for field in ("label", "state"):
+                if values.get(field):
+                    values[field] = table.get(values[field], values[field])
+            return templates[language].format(**values)
     return text
 
 
