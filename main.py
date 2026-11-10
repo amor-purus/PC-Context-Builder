@@ -864,9 +864,23 @@ def build_package(payload, choices, output_dir, language="en"):
     system_out = json.loads(json.dumps(system, ensure_ascii=False)) if selected.get("system") else {}
     if system_out and selected.get("software"):
         included_apps = [r for r in system.get("software", []) if r.get("Include", False)]
-        include_names = {str(r.get("Name", "")) for r in included_apps}
+        included_browser_rows = {
+            (
+                str(r.get("Name", "")),
+                str(r.get("Version", "")),
+                str(r.get("Publisher", "")),
+            )
+            for r in included_apps
+        }
         system_out["software"] = [{k:v for k,v in r.items() if k != "Include"} for r in included_apps]
-        system_out["browser_summary"] = [r for r in system_out.get("browser_summary", []) if r.get("Name") in include_names]
+        system_out["browser_summary"] = [
+            r for r in system_out.get("browser_summary", [])
+            if (
+                str(r.get("Name", "")),
+                str(r.get("Version", "")),
+                str(r.get("Publisher", "")),
+            ) in included_browser_rows
+        ]
     elif system_out:
         system_out.pop("software", None)
         system_out.pop("browser_summary", None)
@@ -2144,8 +2158,9 @@ def self_test():
                 "hardware": {"manufacturer":"TestVendor","model":"TestModel","cpu":[],"gpu":[],"display_resolutions":[]},
                 "software": [
                     {"Name":"Selected App","Version":"1.0","Publisher":"Example","InstallLocation":"%USERPROFILE%\\Apps\\Selected","Include":True},
+                    {"Name":"Selected App","Version":"0.9","Publisher":"Example","InstallLocation":"C:\\Apps\\Older","Include":False},
                     {"Name":"Excluded App","Version":"2.0","Publisher":"Example","InstallLocation":"C:\\Apps\\Excluded","Include":False},
-                ],
+                "browser_summary": [{"Name":"Selected App","Version":"1.0","Publisher":"Example"},{"Name":"Selected App","Version":"0.9","Publisher":"Example"},{"Name":"Excluded App","Version":"2.0","Publisher":"Example"}],
                 "browser_summary": [{"Name":"Selected App","Version":"1.0"},{"Name":"Excluded App","Version":"2.0"}],
                 "python_environments": [],
                 "drives": [{"Drive":"C:","VolumeName":"Test","FileSystem":"NTFS","SizeBytes":1000,"FreeBytes":500}],
@@ -2210,6 +2225,7 @@ def self_test():
         with zipfile.ZipFile(path) as z:
             system_text = z.read("PC_Context_Pack/01_PC_PROFILE/system_profile.json").decode("utf-8-sig")
             assert "Selected App" in system_text and "Excluded App" not in system_text
+            assert '"Version": "1.0"' in system_text and '"Version": "0.9"' not in system_text
             files_text = z.read("PC_Context_Pack/04_FILE_INDEX/files.csv").decode("utf-8-sig")
             assert "normal.txt" in files_text and ".env" not in files_text and "my_api_key.txt" not in files_text
             warnings_text = z.read("PC_Context_Pack/06_SCAN_REPORT/warnings.csv").decode("utf-8-sig")
