@@ -1507,6 +1507,7 @@ class DriveSelection(Toplevel):
 class App:
     def __init__(self, root):
         self.root = root
+        self.language = load_language_preference()
         self.root.title(f"{APP_NAME} v{VERSION}")
         self.root.geometry("900x650")
         self.root.minsize(760, 560)
@@ -1517,12 +1518,54 @@ class App:
         self.selected_roots = []
         self.drive_dialog = None
         self.review_window = None
-        self.status = StringVar(value="スキャン開始前です。")
+        self.status = StringVar(value=tr("スキャン開始前です。", self.language))
         self.progress = StringVar(value="")
         self._build()
         self.root.protocol("WM_DELETE_WINDOW", self._request_close)
         self.root.after(100, self._activate_main_window)
         self.root.after(200, self._poll)
+
+    def t(self, text):
+        return tr(text, self.language)
+
+    def _change_language(self, _event=None):
+        selected = LANGUAGE_CODES_BY_NAME.get(self.language_var.get())
+        if not selected or selected == self.language:
+            return
+        self.language = selected
+        try:
+            save_language_preference(self.language)
+        except OSError:
+            pass
+        if self.worker and self.worker.is_alive():
+            self.status.set(self.t("スキャンを開始しています..."))
+        elif self.payload is not None:
+            self.status.set(self.t("スキャンが終了しました。収集結果を確認してください。"))
+        else:
+            self.status.set(self.t("スキャン開始前です。"))
+        self.progress.set("")
+        self._build()
+        if self.worker and self.worker.is_alive():
+            self.start_btn.configure(state="disabled")
+            self.cancel_btn.configure(state="normal")
+        elif self.review_window is not None:
+            try:
+                if self.review_window.winfo_exists():
+                    self.start_btn.configure(state="disabled")
+            except Exception:
+                self.review_window = None
+        if self.review_window is not None:
+            try:
+                if self.review_window.winfo_exists():
+                    self.review_window.set_language(self.language)
+            except Exception:
+                self.review_window = None
+        if self.drive_dialog is not None:
+            try:
+                if self.drive_dialog.winfo_exists():
+                    self.drive_dialog.set_language(self.language)
+            except Exception:
+                self.drive_dialog = None
 
     def _activate_main_window(self):
         try:
@@ -1560,9 +1603,29 @@ class App:
             self.root.destroy()
 
     def _build(self):
-        outer = ttk.Frame(self.root, padding=20)
+        old_container = getattr(self, "container", None)
+        if old_container is not None:
+            try:
+                old_container.destroy()
+            except Exception:
+                pass
+        self.container = ttk.Frame(self.root, padding=20)
+        outer = self.container
         outer.pack(fill="both", expand=True)
-        ttk.Label(outer, text="PC Context Builder", font=("Yu Gothic UI", 24, "bold")).pack(anchor="w")
+        header = ttk.Frame(outer)
+        header.pack(fill="x")
+        ttk.Label(header, text="PC Context Builder", font=("Yu Gothic UI", 24, "bold")).pack(side="left", anchor="w")
+        language_bar = ttk.Frame(header)
+        language_bar.pack(side="right", anchor="e", padx=(8,0), pady=4)
+        ttk.Label(language_bar, text="言語 / Language").pack(side="left", padx=(0,6))
+        self.language_var = StringVar(value=LANGUAGE_NAMES[self.language])
+        self.language_combo = ttk.Combobox(
+            language_bar, textvariable=self.language_var,
+            values=[LANGUAGE_NAMES[code] for code in LANGUAGE_ORDER],
+            state="readonly", width=12
+        )
+        self.language_combo.pack(side="left")
+        self.language_combo.bind("<<ComboboxSelected>>", self._change_language)
         ttk.Label(outer, text="Windows PCの環境情報を収集し、確認後にAIアシスタント向けコンテキストパッケージを作成します。", font=("Yu Gothic UI", 10)).pack(anchor="w", pady=(4,14))
         tags = ttk.Frame(outer); tags.pack(anchor="w", pady=(0,14))
         ttk.Label(tags, text="ローカル処理", relief="solid", padding=(8,4)).pack(side="left", padx=(0,6))
@@ -1595,6 +1658,7 @@ class App:
         note.pack(fill="x", pady=8)
         ttk.Label(note, text="• スキャン前に許可を求め、結果一覧の確認と最終承認が終わるまでZIPを作成しません。\n• スキャンは最大10分、最大150,000ファイル・30,000フォルダーで上限を設けます。上限に達した場合は部分スキャンとして記録します。\n• 生成ZIPは通常のZIPです。暗号化されていないため、共有する前に内容を確認してください。", justify="left").pack(anchor="w")
         ttk.Label(outer, text=f"v{VERSION} • Python標準ライブラリのみ • Windows 11 x64", foreground="#666").pack(anchor="e", pady=(10,0))
+        translate_widget_tree(self.container, self.language)
 
     def start_scan(self):
         if self.review_window is not None:
