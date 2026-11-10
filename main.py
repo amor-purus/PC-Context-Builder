@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AI PC Intelligence v1.0.8 - Local, read-only Windows PC inventory packager.
+"""PC Context Builder v1.0.9 - Local, read-only Windows PC context packager.
 
 No third-party Python packages are required. File contents are never opened or copied.
 """
@@ -26,8 +26,8 @@ from pathlib import Path
 from tkinter import Tk, Toplevel, StringVar, BooleanVar, filedialog, messagebox
 from tkinter import ttk
 
-APP_NAME = "AI PC Intelligence"
-VERSION = "1.0.8"
+APP_NAME = "PC Context Builder"
+VERSION = "1.0.9"
 MAX_FILES = 150_000
 MAX_FOLDERS = 30_000
 MAX_SCAN_SECONDS = 600
@@ -806,7 +806,7 @@ def generate_readme(payload, selected, included_counts):
     hw = sysd.get("hardware", {})
     osd = sysd.get("os", {})
     lines = [
-        "# AI PC Knowledge Pack", "",
+        "# PC Context Pack", "",
         f"- Schema version: {VERSION}",
         f"- Scan time: {payload.get('scan_time','')}",
         "- Collection method: local read-only inventory", 
@@ -842,7 +842,7 @@ def generate_readme(payload, selected, included_counts):
         "System/application directories, common cloud-sync folders, hidden/system files and folders, reparse points, caches, and known credential folders were excluded from the file-system walk.",
         "Software names, folder paths, and file metadata are opt-in: their rows are excluded by default until individually selected in the review window.",
         "A partial scan or access errors mean the inventory is incomplete. See scan_report.json and warnings.csv.",
-        "", "## How ChatGPT should use this package", "",
+        "", "## How an AI assistant should use this package", "",
         "Use system_profile.json to understand the machine environment; installed_software.csv to identify selected software; volumes.csv for storage; folders.csv and files.csv as a searchable metadata index only. Do not assume the package contains file contents.",
     ]
     return "\n".join(lines) + "\n"
@@ -887,30 +887,30 @@ def build_package(payload, choices, output_dir):
         "limits": {"max_files": MAX_FILES, "max_folders": MAX_FOLDERS, "max_scan_seconds": MAX_SCAN_SECONDS},
     }
     date_tag = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-    dest = os.path.join(output_dir, f"AI_PC_Knowledge_Pack_{date_tag}.zip")
+    dest = os.path.join(output_dir, f"PC_Context_Pack_{date_tag}.zip")
     suffix = 2
     while os.path.exists(dest):
-        dest = os.path.join(output_dir, f"AI_PC_Knowledge_Pack_{date_tag}_{suffix}.zip")
+        dest = os.path.join(output_dir, f"PC_Context_Pack_{date_tag}_{suffix}.zip")
         suffix += 1
     temp = dest + ".tmp"
     try:
         with zipfile.ZipFile(temp, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
-            zf.writestr("AI_PC_Knowledge_Pack/00_README_FOR_AI.md", generate_readme(payload, selected, counts))
+            zf.writestr("PC_Context_Pack/00_README_FOR_AI.md", generate_readme(payload, selected, counts))
             if system_out:
-                zf.writestr("AI_PC_Knowledge_Pack/01_PC_PROFILE/system_profile.json", safe_json_bytes(system_out))
+                zf.writestr("PC_Context_Pack/01_PC_PROFILE/system_profile.json", safe_json_bytes(system_out))
             if selected.get("software"):
-                zf.writestr("AI_PC_Knowledge_Pack/02_SOFTWARE/installed_software.csv", csv_bytes(software, ["Name","Version","Publisher","InstallLocation"]))
+                zf.writestr("PC_Context_Pack/02_SOFTWARE/installed_software.csv", csv_bytes(software, ["Name","Version","Publisher","InstallLocation"]))
             if selected.get("drives"):
-                zf.writestr("AI_PC_Knowledge_Pack/03_STORAGE/volumes.csv", csv_bytes(drives, ["Drive","VolumeName","FileSystem","SizeBytes","FreeBytes"]))
+                zf.writestr("PC_Context_Pack/03_STORAGE/volumes.csv", csv_bytes(drives, ["Drive","VolumeName","FileSystem","SizeBytes","FreeBytes"]))
             if selected.get("folders"):
-                zf.writestr("AI_PC_Knowledge_Pack/04_FILE_INDEX/folders.csv", csv_bytes(folders, ["Drive","Path","Depth"]))
+                zf.writestr("PC_Context_Pack/04_FILE_INDEX/folders.csv", csv_bytes(folders, ["Drive","Path","Depth"]))
             if selected.get("files"):
-                zf.writestr("AI_PC_Knowledge_Pack/04_FILE_INDEX/files.csv", csv_bytes(files, ["Drive","Path","Name","Extension","SizeBytes","Modified","PrivacyCandidate"]))
+                zf.writestr("PC_Context_Pack/04_FILE_INDEX/files.csv", csv_bytes(files, ["Drive","Path","Name","Extension","SizeBytes","Modified","PrivacyCandidate"]))
             if selected.get("security"):
-                zf.writestr("AI_PC_Knowledge_Pack/05_SECURITY/excluded_items_summary.csv", csv_bytes(exclusions, ["Category","Reason"]))
+                zf.writestr("PC_Context_Pack/05_SECURITY/excluded_items_summary.csv", csv_bytes(exclusions, ["Category","Reason"]))
             if selected.get("warnings"):
-                zf.writestr("AI_PC_Knowledge_Pack/06_SCAN_REPORT/warnings.csv", csv_bytes(warnings, ["Drive","Reason"]))
-            zf.writestr("AI_PC_Knowledge_Pack/06_SCAN_REPORT/scan_report.json", safe_json_bytes({
+                zf.writestr("PC_Context_Pack/06_SCAN_REPORT/warnings.csv", csv_bytes(warnings, ["Drive","Reason"]))
+            zf.writestr("PC_Context_Pack/06_SCAN_REPORT/scan_report.json", safe_json_bytes({
                 "scan_status": payload.get("filesystem_status"),
                 "filesystem_counts": payload.get("filesystem_counts"),
                 "elapsed_seconds": payload.get("filesystem_elapsed_seconds"),
@@ -918,7 +918,7 @@ def build_package(payload, choices, output_dir):
                 "excluded_count": len(payload.get("exclusions", [])),
                 "roots_scanned": payload.get("roots", []),
             }))
-            zf.writestr("AI_PC_Knowledge_Pack/06_SCAN_REPORT/manifest.json", safe_json_bytes(manifest))
+            zf.writestr("PC_Context_Pack/06_SCAN_REPORT/manifest.json", safe_json_bytes(manifest))
         with zipfile.ZipFile(temp, "r") as zf:
             bad = zf.testzip()
             if bad:
@@ -1503,8 +1503,8 @@ class App:
     def _build(self):
         outer = ttk.Frame(self.root, padding=20)
         outer.pack(fill="both", expand=True)
-        ttk.Label(outer, text="AI PC Intelligence", font=("Yu Gothic UI", 24, "bold")).pack(anchor="w")
-        ttk.Label(outer, text="Windows PCの概要を収集し、確認後にChatGPT向けデータパッケージを作成します。", font=("Yu Gothic UI", 10)).pack(anchor="w", pady=(4,14))
+        ttk.Label(outer, text="PC Context Builder", font=("Yu Gothic UI", 24, "bold")).pack(anchor="w")
+        ttk.Label(outer, text="Windows PCの環境情報を収集し、確認後にAIアシスタント向けコンテキストパッケージを作成します。", font=("Yu Gothic UI", 10)).pack(anchor="w", pady=(4,14))
         tags = ttk.Frame(outer); tags.pack(anchor="w", pady=(0,14))
         ttk.Label(tags, text="ローカル処理", relief="solid", padding=(8,4)).pack(side="left", padx=(0,6))
         ttk.Label(tags, text="読み取り専用", relief="solid", padding=(8,4)).pack(side="left", padx=6)
@@ -1640,7 +1640,7 @@ class App:
             path, counts, size = build_package(self.payload, choices, output)
             self.status.set("ZIPの作成と整合性検査が完了しました。")
             self.progress.set(path)
-            messagebox.showinfo("作成完了", f"AI向けZIPを作成しました。\n\n保存先：{path}\nサイズ：{format_bytes(size)}\n\n収録件数：\n" + "\n".join(f"{k}: {v:,}" for k,v in counts.items()) + "\n\nZIPの中身を確認してからChatGPTに共有してください。", parent=dialog_parent)
+            messagebox.showinfo("作成完了", f"AI向けZIPを作成しました。\n\n保存先：{path}\nサイズ：{format_bytes(size)}\n\n収録件数：\n" + "\n".join(f"{k}: {v:,}" for k,v in counts.items()) + "\n\nZIPの中身を確認してからAIアシスタントに共有してください。", parent=dialog_parent)
             return True
         except Exception as exc:
             self.status.set("ZIPの作成に失敗しました。")
@@ -1853,14 +1853,21 @@ def self_test():
         with zipfile.ZipFile(path) as z:
             assert z.testzip() is None
             names = set(z.namelist())
-            assert "AI_PC_Knowledge_Pack/00_README_FOR_AI.md" in names
-            assert "AI_PC_Knowledge_Pack/04_FILE_INDEX/files.csv" in names
+            assert os.path.basename(path).startswith("PC_Context_Pack_")
+            assert names and all(name.startswith("PC_Context_Pack/") for name in names)
+            assert not any(name.startswith("AI_PC_Knowledge_Pack/") for name in names)
+            pack_readme = z.read("PC_Context_Pack/00_README_FOR_AI.md").decode("utf-8-sig")
+            assert "# PC Context Pack" in pack_readme
+            assert "How an AI assistant should use this package" in pack_readme
+            assert "ChatGPT" not in pack_readme
+            assert "PC_Context_Pack/00_README_FOR_AI.md" in names
+            assert "PC_Context_Pack/04_FILE_INDEX/files.csv" in names
             assert counts["files"] == 1
-            system_text = z.read("AI_PC_Knowledge_Pack/01_PC_PROFILE/system_profile.json").decode("utf-8-sig")
+            system_text = z.read("PC_Context_Pack/01_PC_PROFILE/system_profile.json").decode("utf-8-sig")
             assert "Selected App" in system_text and "Excluded App" not in system_text
-            files_text = z.read("AI_PC_Knowledge_Pack/04_FILE_INDEX/files.csv").decode("utf-8-sig")
+            files_text = z.read("PC_Context_Pack/04_FILE_INDEX/files.csv").decode("utf-8-sig")
             assert "normal.txt" in files_text and ".env" not in files_text and "my_api_key.txt" not in files_text
-            warnings_text = z.read("AI_PC_Knowledge_Pack/06_SCAN_REPORT/warnings.csv").decode("utf-8-sig")
+            warnings_text = z.read("PC_Context_Pack/06_SCAN_REPORT/warnings.csv").decode("utf-8-sig")
             assert "synthetic_warning" in warnings_text
             all_bytes = b"".join(z.read(n) for n in names)
             assert b"PRIVATE FILE BODY MUST NEVER ENTER ZIP" not in all_bytes
@@ -1871,9 +1878,9 @@ def self_test():
         path2, counts2, _ = build_package(fake, {"categories":{"system":True,"software":False,"drives":False,"folders":False,"files":False,"warnings":False,"security":False}}, td)
         with zipfile.ZipFile(path2) as z:
             names2 = set(z.namelist())
-            assert "AI_PC_Knowledge_Pack/02_SOFTWARE/installed_software.csv" not in names2
-            assert "AI_PC_Knowledge_Pack/03_STORAGE/volumes.csv" not in names2
-            profile2 = z.read("AI_PC_Knowledge_Pack/01_PC_PROFILE/system_profile.json").decode("utf-8-sig")
+            assert "PC_Context_Pack/02_SOFTWARE/installed_software.csv" not in names2
+            assert "PC_Context_Pack/03_STORAGE/volumes.csv" not in names2
+            profile2 = z.read("PC_Context_Pack/01_PC_PROFILE/system_profile.json").decode("utf-8-sig")
             assert "Selected App" not in profile2 and "Drive" not in profile2
             assert counts2["files"] == 0 and counts2["software"] == 0 and counts2["drives"] == 0
 
