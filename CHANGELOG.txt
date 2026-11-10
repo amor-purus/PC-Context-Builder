@@ -3,7 +3,7 @@ Unreleased — Phase 1 security/privacy hardening
 - Match sensitive directories by complete path components, including multi-component entries such as .config/gcloud.
 - Exclude common cloud-sync directory names and roots exposed through Windows environment variables.
 - Add regression checks for formula-like CSV cells, sensitive path boundaries, named OneDrive folders, and custom OneDrive roots.
-- Validation: GitHub Actions Windows Runner syntax compile and built-in self-test PASS (run #4); Windows 11 target-device verification remains pending. Do not treat this change as a released version yet.
+- Validation: GitHub Actions Windows Runner syntax compile and built-in self-test PASS; Windows 11 target-device verification on 2026-11-10 PASS (user-reported): `check_tool.bat` reported `SELF-TEST PASS`, the main GUI and Review window opened/closed normally, and the C: scan completed normally. No PC Knowledge Pack was exported during this verification. Do not treat this change as a released version yet.
 
 AI PC Intelligence v1.0.7
 - Removed transient() and grab_set() from DriveSelection and ReviewWindow to avoid Windows Tk parent/child activation deadlocks and taskbar restore failures.
