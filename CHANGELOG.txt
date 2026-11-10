@@ -1,3 +1,8 @@
+PC Context Builder v1.1.0 — local language-preference robustness (2026-11-11; candidate, not released)
+- Harden `load_language_preference()`: a syntactically valid but non-object JSON value (array, null, number, or string) now falls back to the detected system language instead of raising an AttributeError during application startup.
+- Add self-test coverage using an isolated temporary settings file for list/null/number/string shapes, a valid supported language object, and an unsupported language code. The test does not read or modify the user's actual settings file.
+- Source commits: `9633d4b0a6c1257fe198f5097ad865f5649f5379` (loader guard) and `9b8ce16cf897bf48a912c3a683f88e7e13a969fa` (tests). Windows Actions runs are in progress for both commits; do not mark this follow-up CI-verified until the latest-head run succeeds.
+
 PC Context Builder v1.1.0 — software-selection privacy fix (2026-11-11; candidate, not released)
 - Tighten the optional browser-summary filter: only rows matching a selected software entry's exact Name + Version + Publisher tuple are retained in system_profile.json. Matching by application name alone could leak summary metadata for an unselected version when duplicate application names existed.
 - Expand the synthetic package fixture with the same application name at versions 1.0 (selected) and 0.9 (not selected), then assert that version 0.9 is absent from the generated system profile.
