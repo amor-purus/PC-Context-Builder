@@ -5,7 +5,7 @@ PC Context Builder v1.0.9 — branding candidate, not yet published (2026-11-10)
 - Update the GUI title, generated package README, usage prompts, project documentation, and regression tests.
 - Retain ignore rules for both the new PC_Context_Pack output and legacy AI_PC_Knowledge_Pack exports.
 - No scanning, collection, privacy-filtering, or upload behavior changes are intended in this branding update.
-- The v1.0.8 tag and published Release remain unchanged. Windows CI and target-device verification for v1.0.9 are pending.
+- The v1.0.8 tag and published Release remain unchanged. GitHub Actions Windows CI passed on candidate commit 539efb2500e519b45f7bc730e5dbdb14458d3498 (workflow run #42770007064), including compile and synthetic ZIP self-test. Windows 11 target-device GUI and real export verification are still pending.
 
 AI PC Intelligence v1.0.8 — Released 2026-11-10
 - Neutralize spreadsheet formula-triggering prefixes in CSV text cells while preserving numeric values.
