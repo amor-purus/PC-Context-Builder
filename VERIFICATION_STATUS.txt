@@ -14,9 +14,9 @@ v1.1.0 multilingual UI candidate — not yet released:
 - Product branding fix: `APP_NAME.txt` is the single source for the product name; `app_config.py` loads it for Python/GUI, and `start.bat` reads the same file with `set /p`. This avoids nested `cmd.exe` quoting around the Python executable path. Historical release notes retain references to the former brand intentionally.
 - Added a self-test guard that verifies `APP_NAME.txt`, the Python constant, and the batch `set /p` integration agree; it also rejects the old fragile `for /f` Python command extraction. GitHub Actions Windows CI: PASS on commit `995047ec983b56bd689c84800ece709ea2a89030` (run #42808091904), CPython 3.14 x64; source compilation and the built-in synthetic self-test passed. The CMD launcher itself still requires verification on the target Windows 11 PC.
 - Localization regression fix: scan-scope bullets are translated before the bullet prefix is added, and review overview row labels are translated before insertion into the Treeview. Self-test assertions cover all five Chinese scan-scope entries and key overview labels.
-- Latest bug-fix commit: 110bf264fd6ac77df5e45ee6ad7314378c744469; Windows CI validation is pending.
-- Windows 11 target-device GUI switching, font rendering, scan review, and ZIP export verification have not yet been performed for v1.1.0.
-- v1.1.0 must remain an unpublished candidate until CI passes and target-device verification is completed.
+- Latest code candidate HEAD at review time: `66e7618f9edda74d48ed72f77f97f2db1d32ad5b` (2026-11-10). GitHub Actions Windows self-test run #42808214205 completed successfully on this exact commit: CPython 3.14 x64 setup, source compilation, and the built-in synthetic self-test all passed.
+- This CI result covers the code candidate; it does not establish target-device behavior. Windows 11 CMD launcher execution, GUI language switching, font rendering, scan review, and ZIP export verification have not yet been performed for v1.1.0.
+- Keep v1.1.0 unpublished until target-device verification is completed.
 
 v1.0.9 branding candidate — not yet released:
 - Product name: PC Context Builder.
