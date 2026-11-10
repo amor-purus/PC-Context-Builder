@@ -649,6 +649,16 @@ for _language, _values in EXTRA_TRANSLATIONS_5.items():
     TRANSLATIONS[_language].update(_values)
 
 
+EXTRA_TRANSLATIONS_6 = {
+    "zh": {"Python標準ライブラリのみ": "仅使用 Python 标准库"},
+    "ja": {"Python標準ライブラリのみ": "Python標準ライブラリのみ"},
+    "ko": {"Python標準ライブラリのみ": "Python 표준 라이브러리만 사용"},
+    "en": {"Python標準ライブラリのみ": "Python standard library only"},
+}
+for _language, _values in EXTRA_TRANSLATIONS_6.items():
+    TRANSLATIONS[_language].update(_values)
+
+
 def detect_system_language() -> str:
     """Map the Windows/user locale to one of the four supported languages."""
     try:
