@@ -7,7 +7,7 @@ PC Context Builder v1.1.0 — target-device acceptance complete; candidate not y
 
 PC Context Builder v1.1.0 — multilingual UI candidate, not yet published (2026-11-10; updated 2026-11-11)
 - Fix responsive main-window text wrapping: long descriptions, scan-scope bullets, privacy and important notices, and status/progress text now recalculate wraplength from the Canvas viewport width on resize. Wider windows allow fewer or equal text lines; narrower windows allow more or equal lines.
-- Extend the built-in self-test with monotonic wrap-width checks and source guards for reflow on Canvas resize. The candidate code is in commit `3595ef70279170094889932b2143ed02141161ce`; latest PR head `c8522e9c1834f83841a7e9628bcb92344a6ee909` passed Windows Actions run [#42851616727](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42851616727): CPython 3.14 x64 setup, source compilation, and synthetic self-test. Target-device reflow/scroll verification remains pending.
+- Extend the built-in self-test with monotonic wrap-width checks and source guards for reflow on Canvas resize. The candidate code is in commit `3595ef70279170094889932b2143ed02141161ce`; latest PR head `c8522e9c1834f83841a7e9628bcb92344a6ee909` passed Windows Actions run [#42851616727](https://github.com/yanchengz685-bot/PC-Context-Builder/actions/runs/42851616727): CPython 3.14 x64 setup, source compilation, and synthetic self-test. Target-device reflow/scroll acceptance was subsequently confirmed by the user on Windows 11 on 2026-11-11; see the final acceptance entry above.
 - Add a Canvas-backed scrollable viewport to the main window, with a visible vertical scrollbar that stays synchronized with content size and window resizing.
 - Route Windows mouse-wheel input to the main page only while the pointer is over its canvas; preserve native language-combobox handling and separate dialog behavior.
 - Add built-in self-test guards for the main scrollbar, embedded scroll region, and scoped mouse-wheel routing. Windows Actions passed on commit `705ce0bed06a92386ab170a14613cda9cf78fc3b` (run #42848788522): CPython 3.14 x64 setup, source compilation, and synthetic self-test.
@@ -21,7 +21,7 @@ PC Context Builder v1.1.0 — multilingual UI candidate, not yet published (2026
 - Localize the main window, drive selector, scan review tabs and headings, status text, confirmation dialogs, and ZIP-creation messages.
 - Generate the human-readable AI-facing README inside the ZIP in the selected language and record the UI language in the manifest.
 - Keep JSON field names, CSV headers, ZIP paths, scan collection, privacy filters, and package schema stable.
-- Keep the v1.0.8 release/tag unchanged. This v1.1.0 candidate is not published; Windows GUI verification on the target PC is still required.
+- Keep the v1.0.8 release/tag unchanged. This v1.1.0 candidate is not published. Windows 11 target-device UI acceptance was confirmed by the user on 2026-11-11; PR #6 remains Draft and unmerged.
 
 PC Context Builder v1.0.9 — branding candidate, not yet published (2026-11-10)
 - Rename the application from AI PC Intelligence to PC Context Builder.
