@@ -1,4 +1,4 @@
-AI PC Intelligence - Verification status
+PC Context Builder - Verification status
 Latest released version: v1.0.8
 Updated: 2026-11-10
 
@@ -9,6 +9,7 @@ v1.0.9 branding candidate — not yet released:
 - Intended scope is branding, output naming, generated package documentation, and regression expectations only; scan collection and privacy-filter logic are unchanged.
 - GitHub Actions Windows CI: PASS on candidate commit 539efb2500e519b45f7bc730e5dbdb14458d3498 (workflow run #42770007064), including CPython 3.14 x64 setup, syntax compilation, and built-in self-test with synthetic ZIP naming/path assertions.
 - Windows 11 target-device GUI startup, real scan, and user-side ZIP export verification: pending.
+- Merged main candidate commit 01e2e494a09c635174eb55287355eded35369d38: Windows Actions PASS (run #42770196706); the preceding PR validation also passed.
 
 v1.0.8 release verification — Phase 1 security hardening:
 - Release state: published GitHub Release and v1.0.8 tag (2026-11-10).
