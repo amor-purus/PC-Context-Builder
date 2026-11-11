@@ -1,0 +1,9 @@
+{
+  "controller": "http://127.0.0.1:9090",
+  "secret": "",
+  "connection_interval_ms": 250,
+  "connection_snapshot_seconds": 5,
+  "log_level": "debug",
+  "context_refresh_seconds": 60,
+  "output_dir": "FlClashLogs"
+}

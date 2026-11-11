@@ -1,0 +1,21 @@
+# Local controller credentials
+settings.json
+
+# Collected traffic and diagnostic data
+FlClashLogs/
+collector-startup.log
+*.jsonl
+
+# Python artifacts and local environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Local archives and editor files
+*.zip
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
