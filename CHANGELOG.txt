@@ -3,8 +3,8 @@ PC Context Builder v1.0.9 — hardening candidate, not yet published (2026-11-13
 - Harden Tk GUI lifecycle, including scan polling/shutdown, export-in-progress handling, and drive-selection placement. Preserve the privacy boundary: no file contents are read and no machine-unique volume serial is exported.
 - Follow-up review fixes preserve Treeview scroll position when toggling individual software, folder, or file rows; guard ReviewWindow after both final-confirmation dialogs; and use Windows path semantics for Box-path regression checks so --self-test is portable across host OS path modules.
 - Regression self-tests cover these behaviors. Windows Actions PR run #213 passed CPython 3.14 x64 setup, syntax compilation, and built-in self-test on code commit d93ab3ed24c7fd47193665fb2e5f08e0928fdf10. Subsequent commits in this branch are documentation/PR-metadata-only; confirm the latest PR check remains green before merge.
-- Windows 11 target-device verification for the 2026-11-13 hardening revision is PENDING. The 2026-11-10 device report belongs to the earlier branding-only candidate and does not validate this code.
-- Before release, rerun check_tool.bat (SELF-TEST PASS) and complete the full Windows 11 scan → Review → ZIP export workflow. Keep v1.0.8 tag and published Release unchanged.
+- Windows 11 target-device verification for the current hardening candidate: PASS (user-confirmed 2026-11-14), including check_tool.bat SELF-TEST and the complete scan → Review → ZIP export/integrity-check workflow. The 2026-11-10 report remains a separate historical result for the predecessor branding-only candidate.
+- Keep the published v1.0.8 tag and Release unchanged.
 
 Earlier v1.0.9 branding-only candidate snapshot — 2026-11-10 (historical; superseded scope)
 - Rename the application from AI PC Intelligence to PC Context Builder.
