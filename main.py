@@ -451,7 +451,7 @@ def get_volume_information(root):
         if not ok:
             return "", ""
         return volume_name.value, filesystem_name.value
-    except (AttributeError, OSError, TypeError, ValueError):
+    except Exception:
         return "", ""
 
 
@@ -669,6 +669,14 @@ def summarize_exclusions(rows):
     ]
 
 
+def record_warning(drive: str, reason: str, warnings: list, warning_count: int) -> int:
+    """Count all warnings while retaining at most 5,000 exportable detail rows."""
+    warning_count += 1
+    if len(warnings) < 5000:
+        warnings.append({"Drive": str(drive), "Reason": str(reason)})
+    return warning_count
+
+
 def record_expected_protected_skip(path: str, skipped_count: int, exclusions: list, exclusion_counts: dict):
     record_exclusion("folder", "expected_protected_directory_access_denied", exclusions, exclusion_counts)
     return skipped_count + 1
@@ -738,12 +746,10 @@ def scan_filesystem(roots, q: queue.Queue, cancel_event: threading.Event):
                                 modified, timestamp_error = format_modified_timestamp(st.st_mtime)
                                 if timestamp_error:
                                     error_count += 1
-                                    warning_count += 1
-                                    if len(warnings) < 5000:
-                                        warnings.append({
-                                            "Drive": (entry.path[:2] if re.match(r"^[A-Za-z]:", entry.path) else "local"),
-                                            "Reason": f"timestamp_format_error: {timestamp_error}",
-                                        })
+                                    warning_count = record_warning(
+                                        entry.path[:2] if re.match(r"^[A-Za-z]:", entry.path) else "local",
+                                        f"timestamp_format_error: {timestamp_error}", warnings, warning_count,
+                                    )
                                 files.append({
                                     "Drive": root[:2], "Path": display_path_for_drive(full, root), "Name": entry.name,
                                     "Extension": os.path.splitext(entry.name)[1].lower(),
@@ -759,9 +765,10 @@ def scan_filesystem(roots, q: queue.Queue, cancel_event: threading.Event):
                                 skipped_count = record_expected_protected_skip(entry.path, skipped_count, exclusions, exclusion_counts)
                             else:
                                 error_count += 1
-                                warning_count += 1
-                                if len(warnings) < 5000:
-                                    warnings.append({"Drive": (entry.path[:2] if re.match(r"^[A-Za-z]:", entry.path) else "local"), "Reason": f"metadata_error: {type(exc).__name__}"})
+                                warning_count = record_warning(
+                                    entry.path[:2] if re.match(r"^[A-Za-z]:", entry.path) else "local",
+                                    f"metadata_error: {type(exc).__name__}", warnings, warning_count,
+                                )
                         processed = files_count + folders_count
                         if processed and processed % 500 == 0:
                             q.put(("progress", {"files": files_count, "folders": folders_count, "skipped": skipped_count, "errors": error_count, "current": mask_path(current)}))
@@ -773,9 +780,10 @@ def scan_filesystem(roots, q: queue.Queue, cancel_event: threading.Event):
                     skipped_count = record_expected_protected_skip(current, skipped_count, exclusions, exclusion_counts)
                 else:
                     error_count += 1
-                    warning_count += 1
-                    if len(warnings) < 5000:
-                        warnings.append({"Drive": (current[:2] if re.match(r"^[A-Za-z]:", current) else "local"), "Reason": f"access_error: {type(exc).__name__}"})
+                    warning_count = record_warning(
+                        current[:2] if re.match(r"^[A-Za-z]:", current) else "local",
+                        f"access_error: {type(exc).__name__}", warnings, warning_count,
+                    )
         if limited:
             break
     files.sort(key=lambda r: (r["Drive"], r["Path"].casefold(), r["Name"].casefold()))
@@ -975,7 +983,7 @@ def build_package(payload, choices, output_dir):
         "system": 1 if system_out else 0,
         "software": len(software), "drives": len(drives),
         "folders": len(folders), "files": len(files),
-        "warnings": len(warnings), "security": len(exclusions),
+        "warnings": len(warnings), "security": sum(int(row.get("Count", 0)) for row in exclusions),
     }
     manifest = {
         "schema_version": VERSION,
@@ -1013,14 +1021,14 @@ def build_package(payload, choices, output_dir):
                 zf.writestr("PC_Context_Pack/06_SCAN_REPORT/warnings.csv", csv_bytes(warnings, ["Drive","Reason"]))
             filesystem_counts = payload.get("filesystem_counts", {})
             fs_warning_count = filesystem_counts.get("warnings", len(payload.get("warnings", [])))
-            warning_rows_count = len(payload.get("warnings", [])) + len(payload.get("scan_warnings", []))
+            warning_rows_count = len(warnings)
             zf.writestr("PC_Context_Pack/06_SCAN_REPORT/scan_report.json", safe_json_bytes({
                 "scan_status": payload.get("filesystem_status"),
                 "filesystem_counts": filesystem_counts,
                 "elapsed_seconds": payload.get("filesystem_elapsed_seconds"),
                 "warnings_count": fs_warning_count + len(payload.get("scan_warnings", [])),
                 "warnings_rows_included": warning_rows_count,
-                "warnings_details_truncated": fs_warning_count > len(payload.get("warnings", [])),
+                "warnings_details_truncated": bool(selected.get("warnings")) and fs_warning_count > len(payload.get("warnings", [])),
                 "excluded_count": filesystem_counts.get("skipped", len(payload.get("exclusions", []))),
                 "roots_scanned": payload.get("roots", []),
             }))
@@ -1537,8 +1545,8 @@ class DriveSelection(Toplevel):
         ttk.Button(btns, text="この範囲でスキャン", command=self._accept).pack(side="right")
         self.protocol("WM_DELETE_WINDOW", self._cancel)
         self.update_idletasks()
-        width = max(1, self.winfo_width())
-        height = max(1, self.winfo_height())
+        width = max(1, self.winfo_reqwidth())
+        height = max(1, self.winfo_reqheight())
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
         try:
@@ -1933,6 +1941,16 @@ def self_test():
     json_probe = safe_json_bytes({"ok": True, "text": "日本語"})
     assert not json_probe.startswith(b"\xef\xbb\xbf")
     assert json.loads(json_probe.decode("utf-8"))["ok"] is True
+
+    exclusion_sample = []
+    exclusion_totals = {}
+    warning_sample = []
+    warning_total = 0
+    for _ in range(5003):
+        record_exclusion("file", "synthetic_skip", exclusion_sample, exclusion_totals)
+        warning_total = record_warning("C:", "synthetic_warning", warning_sample, warning_total)
+    assert len(exclusion_sample) == 5000 and exclusion_totals[("file", "synthetic_skip")] == 5003
+    assert len(warning_sample) == 5000 and warning_total == 5003
 
     # CSV values originating from file names, paths, and registry metadata must
     # not become spreadsheet formulas when opened by common spreadsheet apps.
