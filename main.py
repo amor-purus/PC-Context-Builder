@@ -1937,7 +1937,10 @@ def self_test():
     assert is_sensitive_name("tax_return.pdf")
     assert is_sensitive_name("my_ssn.txt")
     assert not is_sensitive_name("normal.txt", r"C:\Users\Taxonomy\Documents\normal.txt")
-    assert not should_skip_dir("Documents", 0, r"C:\Users\Syntax\Documents")
+    assert not is_sensitive_name("Documents", r"C:\Users\Syntax\Documents")
+    isolated_sync_env = {name: "" for name in CLOUD_SYNC_ROOT_ENV_VARS}
+    with __import__("unittest.mock", fromlist=["patch"]).patch.dict(os.environ, isolated_sync_env, clear=False):
+        assert not should_skip_dir("Documents", 0, r"C:\Users\Syntax\Documents")
     bad_modified, bad_modified_error = format_modified_timestamp(float("inf"))
     assert bad_modified == "" and bad_modified_error in {"OverflowError", "OSError", "ValueError"}
     nan_modified, nan_modified_error = format_modified_timestamp(float("nan"))
