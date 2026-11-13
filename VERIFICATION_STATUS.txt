@@ -7,11 +7,11 @@ v1.0.9 hardening candidate — not yet released (2026-11-13):
 - GUI changes harden scan polling, cancellation/shutdown, export lifecycle, drive-selection placement, and per-row selection/count synchronization.
 - Follow-up review fixes now update Treeview rows and count labels without rebuilding the page (preserving scroll position), check ReviewWindow existence after each final-confirmation dialog, and use ntpath.dirname for Windows Box-path semantics in self-tests on non-Windows hosts.
 - Regression self-tests assert the new selection-refresh and dialog-lifecycle contracts, alongside the existing scan/export checks.
-- Windows Actions PR run #213 passed on code commit d93ab3ed24c7fd47193665fb2e5f08e0928fdf10: CPython 3.14 x64 setup, syntax compilation, and built-in self-test all succeeded. Later commits in this branch change documentation/PR metadata only; check the latest PR run before merge.
+- Final Windows Actions PR run #222 passed on commit 1d473d59ce0bd84f19fe2edcb7c9840913b9802c: CPython 3.14 x64 setup, syntax compilation, and built-in self-test all succeeded.
 - Windows 11 target-device verification for the current hardening candidate: PASS (user-confirmed 2026-11-14).
 - The user confirmed check_tool.bat SELF-TEST PASS and completion of the full real-device workflow: filesystem scan, Review inspection/selection, ZIP export, and ZIP integrity/content check.
 - This is a user-confirmed result; no scan-volume counts or error metrics were supplied in this confirmation. The separate 2026-11-10 PASS record below remains historical evidence for the predecessor branding-only candidate.
-- Current development PR: https://github.com/yanchengz685-bot/PC-Context-Builder/pull/9 (Draft; not merged). Published v1.0.8 tag and Release remain unchanged.
+- PR #9 was marked Ready and squash-merged into `main` on 2026-11-14. Merge commit: `0af4f7cdbe7cbf5cd0e30c9e57a3faa336831061`. Published v1.0.8 tag and Release remain unchanged.
 - MIT License is present as `LICENSE`; repository remains Private while historical commit-email cleanup is pending.
 
 Earlier v1.0.9 branding-only candidate verification — 2026-11-10 (pre-hardening historical baseline):
