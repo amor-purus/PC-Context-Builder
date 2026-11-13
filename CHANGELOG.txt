@@ -7,7 +7,6 @@ PC Context Builder v1.0.9 — hardening candidate, not yet published (2026-11-13
 - Before release, rerun check_tool.bat (SELF-TEST PASS) and complete the full Windows 11 scan → Review → ZIP export workflow. Keep v1.0.8 tag and published Release unchanged.
 
 Earlier v1.0.9 branding-only candidate snapshot — 2026-11-10 (historical; superseded scope)
-PC Context Builder v1.0.9 — branding candidate, not yet published (2026-11-10)
 - Rename the application from AI PC Intelligence to PC Context Builder.
 - Describe the product as a local Windows PC context-pack builder for AI assistants, rather than a PC intelligence/diagnostics system.
 - Rename exported archives from AI_PC_Knowledge_Pack_*.zip to PC_Context_Pack_*.zip and the ZIP root folder to PC_Context_Pack/.
