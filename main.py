@@ -1940,7 +1940,15 @@ def self_test():
     assert not is_sensitive_name("Documents", r"C:\Users\Syntax\Documents")
     isolated_sync_env = {name: "" for name in CLOUD_SYNC_ROOT_ENV_VARS}
     with __import__("unittest.mock", fromlist=["patch"]).patch.dict(os.environ, isolated_sync_env, clear=False):
-        assert not should_skip_dir("Documents", 0, r"C:\Users\Syntax\Documents")
+        test_dir_path = r"C:\Users\Syntax\Documents"
+        skip_result = should_skip_dir("Documents", 0, test_dir_path)
+        assert not skip_result[0], (
+            f"skip_result={skip_result}; "
+            f"system_excluded={'documents' in {x.casefold() for x in EXCLUDED_DIR_NAMES}}; "
+            f"sensitive_dir={is_sensitive_dir('Documents', test_dir_path)}; "
+            f"sensitive_name={is_sensitive_name('Documents', test_dir_path)}; "
+            f"cloud_sync={is_cloud_sync_directory('Documents', test_dir_path)}"
+        )
     bad_modified, bad_modified_error = format_modified_timestamp(float("inf"))
     assert bad_modified == "" and bad_modified_error in {"OverflowError", "OSError", "ValueError"}
     nan_modified, nan_modified_error = format_modified_timestamp(float("nan"))
