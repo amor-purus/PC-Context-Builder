@@ -261,7 +261,11 @@ def is_sensitive_name(name: str, full_path: str = "") -> bool:
         leaf = re.split(r"[\\/]+", str(full_path))[-1]
         if leaf and leaf not in candidates:
             candidates.append(leaf)
-    return any(pattern.search(candidate) for candidate in candidates)
+    return any(
+        pattern.search(candidate)
+        for pattern in SENSITIVE_NAME_PATTERNS
+        for candidate in candidates
+    )
 
 
 def is_sensitive_dir(name: str, full_path: str = "") -> bool:
