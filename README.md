@@ -68,8 +68,8 @@ GitHub Actions 在 Windows runner 上执行语法编译和内置 self-test。CI 
 - **当前候选版本：** v1.0.9 hardening candidate（2026-11-13）。本轮不只是品牌更新，也包含扫描容错、敏感项与云同步判定、JSON 编码、排除/警告统计，以及 GUI 生命周期加固。
 - 2026-11-13 的后续修订还覆盖 Treeview 单行选择刷新、审核确认弹窗期间的窗口销毁竞态，以及 Box 路径自检的跨平台路径语义。
 - Windows Actions CI 仅验证其 Runner 上的语法编译和内置 self-test；请以 [PR #9 的检查结果](https://github.com/yanchengz685-bot/PC-Context-Builder/pull/9) 为准。CI 不替代目标设备验证。
-- **当前 2026-11-13 加固代码尚无新的 Windows 11 实机验证记录。** 2026-11-10 的 SELF-TEST、GUI、实扫描、Review 和 ZIP 导出 PASS 仅适用于此前的品牌候选基线，不能视为本轮代码已通过实机测试。
-- 本轮目标设备复测应重新运行 `check_tool.bat`（确认 `SELF-TEST PASS`），再完成完整扫描、审核与 ZIP 导出闭环；结果应追加到 [VERIFICATION_STATUS.txt](VERIFICATION_STATUS.txt)。
+- **Windows 11 实机验证：PASS（用户于 2026-11-14 确认）。** 当前加固候选已完成 `check_tool.bat` 自检及完整扫描 → Review → ZIP 导出/完整性检查闭环。详细记录见 [VERIFICATION_STATUS.txt](VERIFICATION_STATUS.txt)。
+- 2026-11-10 的实机 PASS 仍作为此前品牌候选的历史记录保留，不与本轮验证混淆。
 - v1.0.8 纳入了 Phase 1 安全加固：CSV 公式注入防护、敏感目录多级路径匹配，以及常见云同步目录/同步根目录识别。已发布的 v1.0.8 标签和 Release 保持不变。
 
 ## 仓库内容范围
