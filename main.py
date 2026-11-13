@@ -1979,6 +1979,24 @@ def self_test():
     assert "$loc.Equals($userProfile" in PS_SCRIPT
     assert "$loc.StartsWith(($userProfile +" in PS_SCRIPT
 
+    # An invalid timestamp must not abort the surrounding filesystem scan.
+    with tempfile.TemporaryDirectory() as td_timestamp:
+        timestamp_file = Path(td_timestamp) / "bad_timestamp.txt"
+        timestamp_file.write_text("metadata only", encoding="utf-8")
+        timestamp_q = queue.Queue()
+        with mock.patch(__name__ + ".format_modified_timestamp", return_value=("", "OverflowError")):
+            scan_filesystem([td_timestamp], timestamp_q, threading.Event())
+        timestamp_results = [
+            item[1] for item in list(timestamp_q.queue) if item[0] == "filesystem_done"
+        ]
+        assert len(timestamp_results) == 1
+        timestamp_result = timestamp_results[0]
+        timestamp_row = next(row for row in timestamp_result["files"] if row["Name"] == "bad_timestamp.txt")
+        assert timestamp_row["Modified"] == ""
+        assert timestamp_result["counts"]["errors"] == 1
+        assert timestamp_result["counts"]["warnings"] == 1
+        assert timestamp_result["status"] == "partial_errors"
+
     # The PowerShell collector must drain both pipes while the child process is
     # running. This regression emits much more than a typical Windows pipe buffer
     # to stdout and stderr before it exits.
@@ -2073,7 +2091,7 @@ def self_test():
     assert 'parent=self.root' in start_scan_source
     assert 'self.start_btn.configure(state="disabled")' in start_scan_source
     poll_source = inspect.getsource(App._poll)
-    assert "self.review_window.set_on_close(self._on_review_closed)" in poll_source
+    assert "review.set_on_close(self._on_review_closed)" in poll_source
     assert "finally:" in poll_source and "self.root.after(200, self._poll)" in poll_source
     assert "self.cancel_event.is_set()" in poll_source
     assert "review = ReviewWindow(" in poll_source
