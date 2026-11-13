@@ -1,6 +1,6 @@
 PC Context Builder - Verification status
 Latest released version: v1.0.8
-Updated: 2026-11-13
+Updated: 2026-11-14
 
 v1.0.9 hardening candidate — not yet released (2026-11-13):
 - Current source adds scan timestamp-error containment, tighter sensitive-name boundaries, bounded cloud-sync detection, storage volume label/filesystem metadata, UTF-8 JSON without BOM, and exact total counts for exclusions/warnings when detail samples are capped.
@@ -8,8 +8,9 @@ v1.0.9 hardening candidate — not yet released (2026-11-13):
 - Follow-up review fixes now update Treeview rows and count labels without rebuilding the page (preserving scroll position), check ReviewWindow existence after each final-confirmation dialog, and use ntpath.dirname for Windows Box-path semantics in self-tests on non-Windows hosts.
 - Regression self-tests assert the new selection-refresh and dialog-lifecycle contracts, alongside the existing scan/export checks.
 - Windows Actions PR run #213 passed on code commit d93ab3ed24c7fd47193665fb2e5f08e0928fdf10: CPython 3.14 x64 setup, syntax compilation, and built-in self-test all succeeded. Later commits in this branch change documentation/PR metadata only; check the latest PR run before merge.
-- Windows 11 target-device verification for the exact 2026-11-13 hardening revision: PENDING. The 2026-11-10 device report below is historical and applies only to the pre-hardening branding candidate.
-- Required target-device verification: run check_tool.bat and confirm SELF-TEST PASS; then perform a complete scan, review selections and warnings, create a ZIP, and inspect ZIP integrity/content. Record the actual result and any partial_errors; do not infer PASS from CI.
+- Windows 11 target-device verification for the current hardening candidate: PASS (user-confirmed 2026-11-14).
+- The user confirmed check_tool.bat SELF-TEST PASS and completion of the full real-device workflow: filesystem scan, Review inspection/selection, ZIP export, and ZIP integrity/content check.
+- This is a user-confirmed result; no scan-volume counts or error metrics were supplied in this confirmation. The separate 2026-11-10 PASS record below remains historical evidence for the predecessor branding-only candidate.
 - Current development PR: https://github.com/yanchengz685-bot/PC-Context-Builder/pull/9 (Draft; not merged). Published v1.0.8 tag and Release remain unchanged.
 - MIT License is present as `LICENSE`; repository remains Private while historical commit-email cleanup is pending.
 
