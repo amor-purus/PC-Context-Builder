@@ -11,6 +11,7 @@ import ctypes
 import datetime as dt
 import json
 import os
+import ntpath
 import platform
 import queue
 import re
@@ -65,12 +66,14 @@ SENSITIVE_DIR_NAMES = {
 SENSITIVE_NAME_PATTERNS = [
     re.compile(p, re.IGNORECASE) for p in (
         r"(^|[._ -])\.env($|[._ -])", r"credential", r"secret", r"password",
-        r"passwd", r"token", r"api[_ -]?key", r"access[_ -]?key",
-        r"id_rsa", r"id_ed25519", r"private[_ -]?key", r"(^|[\\/])adbkey(?:\.pub)?($|[._ -])", r"\.pem$",
+        r"passwd", r"(^|[._ -])token($|[._ -])", r"api[_ -]?key", r"access[_ -]?key",
+        r"id_rsa", r"id_ed25519", r"private[_ -]?key", r"(^|[._ -])adbkey(?:\.pub)?($|[._ -])", r"\.pem$",
         r"\.pfx$", r"\.p12$", r"\.key$", r"\.kdbx$", r"keepass",
-        r"wallet", r"auth[_ -]?info", r"cookies?", r"session",
+        r"wallet", r"auth[_ -]?info", r"cookies?", r"(^|[._ -])session($|[._ -])",
         r"personal", r"private", r"confidential", r"medical", r"health",
-        r"finance", r"bank", r"tax", r"passport", r"identity", r"id[_ -]?card", r"ssn",
+        r"(^|[._ -])finance($|[._ -])", r"(^|[._ -])bank($|[._ -])", r"(^|[._ -])tax($|[._ -])",
+        r"(^|[._ -])passport($|[._ -])", r"(^|[._ -])identity($|[._ -])",
+        r"id[_ -]?card", r"(^|[._ -])ssn($|[._ -])",
     )
 ]
 
@@ -107,7 +110,14 @@ foreach ($p in $uninstallPaths) {
   try {
     $apps += Get-ItemProperty -Path $p -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -and $_.SystemComponent -ne 1 -and $_.ReleaseType -notin @('Update','Hotfix','Security Update') } | ForEach-Object {
       $loc = Safe-Text $_.InstallLocation
-      if ($env:USERPROFILE -and $loc.StartsWith($env:USERPROFILE, [System.StringComparison]::OrdinalIgnoreCase)) { $loc = '%USERPROFILE%' + $loc.Substring($env:USERPROFILE.Length) }
+      $userProfile = [string]$env:USERPROFILE
+      if ($userProfile) {
+        $userProfile = $userProfile.TrimEnd([char]92)
+        if ($loc.Equals($userProfile, [System.StringComparison]::OrdinalIgnoreCase) -or
+            $loc.StartsWith(($userProfile + '\'), [System.StringComparison]::OrdinalIgnoreCase)) {
+          $loc = '%USERPROFILE%' + $loc.Substring($userProfile.Length)
+        }
+      }
       $loc = [regex]::Replace($loc, '(?i)^[A-Z]:\\Users\\[^\\]+', '%USERPROFILE%')
       [PSCustomObject]@{ Name=(Safe-Text $_.DisplayName); Version=(Safe-Text $_.DisplayVersion); Publisher=(Safe-Text $_.Publisher); InstallLocation=$loc }
     }
@@ -246,8 +256,17 @@ def mask_path(path: str) -> str:
 
 
 def is_sensitive_name(name: str, full_path: str = "") -> bool:
-    text = f"{name} {full_path}"
-    return any(p.search(text) for p in SENSITIVE_NAME_PATTERNS)
+    """Match the current item name, never an unrelated ancestor directory."""
+    candidates = [str(name or "")]
+    if full_path:
+        leaf = re.split(r"[\\/]+", str(full_path))[-1]
+        if leaf and leaf not in candidates:
+            candidates.append(leaf)
+    return any(
+        pattern.search(candidate)
+        for pattern in SENSITIVE_NAME_PATTERNS
+        for candidate in candidates
+    )
 
 
 def is_sensitive_dir(name: str, full_path: str = "") -> bool:
@@ -269,14 +288,16 @@ def is_sensitive_dir(name: str, full_path: str = "") -> bool:
 
 
 def is_cloud_sync_directory(name: str, full_path: str = "") -> bool:
-    """Detect common sync-folder names and paths exposed by Windows clients."""
+    """Detect known sync folders without treating arbitrary 'box' dirs as sync roots."""
     low_name = str(name or "").casefold().strip()
-    if low_name in CLOUD_SYNC_DIR_NAMES or low_name.startswith("onedrive - "):
+    if low_name in (CLOUD_SYNC_DIR_NAMES - {"box"}) or low_name.startswith("onedrive - "):
         return True
     if not full_path:
         return False
     try:
-        candidate_path = os.path.normcase(os.path.abspath(os.path.expandvars(str(full_path))))
+        # full_path is already a real path from os.scandir; do not expand
+        # percent-delimited directory names as environment variables.
+        candidate_path = os.path.normcase(os.path.abspath(str(full_path)))
     except (OSError, ValueError):
         return False
     for env_name in CLOUD_SYNC_ROOT_ENV_VARS:
@@ -289,6 +310,15 @@ def is_cloud_sync_directory(name: str, full_path: str = "") -> bool:
                 return True
         except (OSError, ValueError):
             continue
+    if low_name == "box":
+        user_profile = os.environ.get("USERPROFILE", "")
+        if user_profile:
+            try:
+                profile_path = os.path.normcase(os.path.abspath(user_profile))
+                if os.path.normcase(ntpath.dirname(candidate_path)) == profile_path:
+                    return True
+            except (OSError, ValueError):
+                pass
     return False
 
 
@@ -400,18 +430,49 @@ def get_python_environments():
     return sorted(result, key=lambda x: (x.get("Version", "").casefold(), x.get("Path", "").casefold()))
 
 
+def get_volume_information(root):
+    """Return the Windows volume label and filesystem name, or empty strings on failure."""
+    if not is_windows():
+        return "", ""
+    try:
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        get_info = kernel32.GetVolumeInformationW
+        get_info.argtypes = [
+            wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD,
+            ctypes.POINTER(wintypes.DWORD), ctypes.POINTER(wintypes.DWORD),
+            ctypes.POINTER(wintypes.DWORD), wintypes.LPWSTR, wintypes.DWORD,
+        ]
+        get_info.restype = wintypes.BOOL
+        volume_name = ctypes.create_unicode_buffer(261)
+        filesystem_name = ctypes.create_unicode_buffer(261)
+        serial = wintypes.DWORD()
+        max_component = wintypes.DWORD()
+        flags = wintypes.DWORD()
+        ok = get_info(
+            str(root), volume_name, len(volume_name),
+            ctypes.byref(serial), ctypes.byref(max_component), ctypes.byref(flags),
+            filesystem_name, len(filesystem_name),
+        )
+        if not ok:
+            return "", ""
+        return volume_name.value, filesystem_name.value
+    except Exception:
+        return "", ""
+
+
 def get_drive_metadata(roots):
     result = []
     for root in roots:
         drive = str(root).strip().rstrip("\\")
         if not re.match(r"^[A-Za-z]:$", drive) or not os.path.isdir(drive + "\\"):
             continue
+        volume_name, filesystem_name = get_volume_information(drive + "\\")
         try:
             usage = shutil.disk_usage(drive + "\\")
-            result.append({"Drive": drive, "VolumeName": "", "FileSystem": "",
+            result.append({"Drive": drive, "VolumeName": volume_name, "FileSystem": filesystem_name,
                            "SizeBytes": usage.total, "FreeBytes": usage.free})
         except OSError:
-            result.append({"Drive": drive, "VolumeName": "", "FileSystem": "",
+            result.append({"Drive": drive, "VolumeName": volume_name, "FileSystem": filesystem_name,
                            "SizeBytes": None, "FreeBytes": None})
     return result
 
@@ -594,17 +655,51 @@ def is_expected_protected_directory_path(path: str) -> bool:
     return any(part in protected for part in components)
 
 
-def record_expected_protected_skip(path: str, skipped_count: int, exclusions: list):
-    skipped_count += 1
+def record_exclusion(category: str, reason: str, exclusions: list, exclusion_counts: dict):
+    """Count every exclusion while retaining only a bounded sample of raw rows."""
+    key = (str(category), str(reason))
+    exclusion_counts[key] = exclusion_counts.get(key, 0) + 1
     if len(exclusions) < 5000:
-        exclusions.append({"Category": "folder", "Reason": "expected_protected_directory_access_denied"})
-    return skipped_count
+        exclusions.append({"Category": key[0], "Reason": key[1]})
+
+
+def summarize_exclusions(rows):
+    counts = {}
+    for row in rows or []:
+        key = (str(row.get("Category", "")), str(row.get("Reason", "")))
+        counts[key] = counts.get(key, 0) + 1
+    return [
+        {"Category": category, "Reason": reason, "Count": count}
+        for (category, reason), count in sorted(counts.items())
+    ]
+
+
+def record_warning(drive: str, reason: str, warnings: list, warning_count: int) -> int:
+    """Count all warnings while retaining at most 5,000 exportable detail rows."""
+    warning_count += 1
+    if len(warnings) < 5000:
+        warnings.append({"Drive": str(drive), "Reason": str(reason)})
+    return warning_count
+
+
+def record_expected_protected_skip(path: str, skipped_count: int, exclusions: list, exclusion_counts: dict):
+    record_exclusion("folder", "expected_protected_directory_access_denied", exclusions, exclusion_counts)
+    return skipped_count + 1
+
+
+def format_modified_timestamp(timestamp):
+    """Format a filesystem timestamp; return ('', error-name) for invalid ranges."""
+    try:
+        return dt.datetime.fromtimestamp(timestamp).astimezone().isoformat(timespec="seconds"), None
+    except (OSError, OverflowError, ValueError) as exc:
+        return "", type(exc).__name__
 
 
 def scan_filesystem(roots, q: queue.Queue, cancel_event: threading.Event):
     files, folders, warnings, exclusions = [], [], [], []
+    exclusion_counts = {}
     started = time.monotonic()
-    files_count = folders_count = skipped_count = error_count = 0
+    files_count = folders_count = skipped_count = error_count = warning_count = 0
     limited = False
     for root in roots:
         if cancel_event.is_set():
@@ -632,15 +727,13 @@ def scan_filesystem(roots, q: queue.Queue, cancel_event: threading.Event):
                             full = entry.path
                             if entry.is_symlink() or attrs & 0x400:
                                 skipped_count += 1
-                                if len(exclusions) < 5000:
-                                    exclusions.append({"Category": "folder_or_file", "Reason": "reparse_point_not_followed"})
+                                record_exclusion("folder_or_file", "reparse_point_not_followed", exclusions, exclusion_counts)
                                 continue
                             if entry.is_dir(follow_symlinks=False):
                                 skip, reason = should_skip_dir(entry.name, attrs, full)
                                 if skip:
                                     skipped_count += 1
-                                    if len(exclusions) < 5000:
-                                        exclusions.append({"Category": "folder", "Reason": reason})
+                                    record_exclusion("folder", reason, exclusions, exclusion_counts)
                                     continue
                                 folders.append({
                                     "Drive": root[:2], "Path": display_path_for_drive(full, root), "Depth": depth,
@@ -652,29 +745,35 @@ def scan_filesystem(roots, q: queue.Queue, cancel_event: threading.Event):
                                 skip_file, file_reason = should_skip_file(entry.name, attrs, full)
                                 if skip_file:
                                     skipped_count += 1
-                                    if file_reason == "hidden_or_system_file" and len(exclusions) < 5000:
-                                        exclusions.append({"Category": "file", "Reason": file_reason})
+                                    record_exclusion("file", file_reason, exclusions, exclusion_counts)
                                     continue
                                 sensitive = file_reason == "sensitive_file_name_candidate"
-                                if sensitive and len(exclusions) < 5000:
-                                    exclusions.append({"Category": "file", "Reason": "sensitive_file_name_candidate"})
+                                modified, timestamp_error = format_modified_timestamp(st.st_mtime)
+                                if timestamp_error:
+                                    error_count += 1
+                                    warning_count = record_warning(
+                                        entry.path[:2] if re.match(r"^[A-Za-z]:", entry.path) else "local",
+                                        f"timestamp_format_error: {timestamp_error}", warnings, warning_count,
+                                    )
                                 files.append({
                                     "Drive": root[:2], "Path": display_path_for_drive(full, root), "Name": entry.name,
                                     "Extension": os.path.splitext(entry.name)[1].lower(),
                                     "SizeBytes": int(st.st_size),
-                                    "Modified": dt.datetime.fromtimestamp(st.st_mtime).astimezone().isoformat(timespec="seconds"),
+                                    "Modified": modified,
                                     "PrivacyCandidate": "Yes" if sensitive else "No",
                                     # Default-deny for every file; users must explicitly opt in.
                                     "Include": False,
                                 })
                                 files_count += 1
-                        except (PermissionError, OSError) as exc:
+                        except (PermissionError, OSError, OverflowError, ValueError) as exc:
                             if isinstance(exc, PermissionError) and is_expected_protected_directory_path(entry.path):
-                                skipped_count = record_expected_protected_skip(entry.path, skipped_count, exclusions)
+                                skipped_count = record_expected_protected_skip(entry.path, skipped_count, exclusions, exclusion_counts)
                             else:
                                 error_count += 1
-                                if len(warnings) < 5000:
-                                    warnings.append({"Drive": (entry.path[:2] if re.match(r"^[A-Za-z]:", entry.path) else "local"), "Reason": f"metadata_error: {type(exc).__name__}"})
+                                warning_count = record_warning(
+                                    entry.path[:2] if re.match(r"^[A-Za-z]:", entry.path) else "local",
+                                    f"metadata_error: {type(exc).__name__}", warnings, warning_count,
+                                )
                         processed = files_count + folders_count
                         if processed and processed % 500 == 0:
                             q.put(("progress", {"files": files_count, "folders": folders_count, "skipped": skipped_count, "errors": error_count, "current": mask_path(current)}))
@@ -683,11 +782,13 @@ def scan_filesystem(roots, q: queue.Queue, cancel_event: threading.Event):
                     break
             except (PermissionError, OSError) as exc:
                 if isinstance(exc, PermissionError) and is_expected_protected_directory_path(current):
-                    skipped_count = record_expected_protected_skip(current, skipped_count, exclusions)
+                    skipped_count = record_expected_protected_skip(current, skipped_count, exclusions, exclusion_counts)
                 else:
                     error_count += 1
-                    if len(warnings) < 5000:
-                        warnings.append({"Drive": (current[:2] if re.match(r"^[A-Za-z]:", current) else "local"), "Reason": f"access_error: {type(exc).__name__}"})
+                    warning_count = record_warning(
+                        current[:2] if re.match(r"^[A-Za-z]:", current) else "local",
+                        f"access_error: {type(exc).__name__}", warnings, warning_count,
+                    )
         if limited:
             break
     files.sort(key=lambda r: (r["Drive"], r["Path"].casefold(), r["Name"].casefold()))
@@ -700,9 +801,17 @@ def scan_filesystem(roots, q: queue.Queue, cancel_event: threading.Event):
         status = "partial_errors"
     else:
         status = "completed"
+    exclusion_summary = [
+        {"Category": category, "Reason": reason, "Count": count}
+        for (category, reason), count in sorted(exclusion_counts.items())
+    ]
     q.put(("filesystem_done", {
         "files": files, "folders": folders, "warnings": warnings, "exclusions": exclusions,
-        "counts": {"files": len(files), "folders": len(folders), "skipped": skipped_count, "errors": error_count},
+        "exclusion_summary": exclusion_summary,
+        "counts": {
+            "files": len(files), "folders": len(folders), "skipped": skipped_count, "errors": error_count,
+            "exclusions": sum(exclusion_counts.values()), "warnings": warning_count,
+        },
         "status": status,
         "elapsed_seconds": round(time.monotonic() - started, 1),
     }))
@@ -730,7 +839,7 @@ def create_scan_payload(q: queue.Queue, cancel_event: threading.Event, selected_
         warnings.append({"Drive": "local", "Reason": "selected_drives_unavailable_or_not_fixed"})
         fs_result = {
             "files": [], "folders": [], "warnings": [], "exclusions": [],
-            "counts": {"files": 0, "folders": 0, "skipped": 0, "errors": 1},
+            "counts": {"files": 0, "folders": 0, "skipped": 0, "errors": 1, "exclusions": 0, "warnings": 0},
             "status": "partial_errors", "elapsed_seconds": 0.0,
         }
     else:
@@ -762,6 +871,7 @@ def create_scan_payload(q: queue.Queue, cancel_event: threading.Event, selected_
         "folders": fs_result["folders"],
         "warnings": fs_result["warnings"],
         "exclusions": fs_result["exclusions"],
+        "exclusion_summary": fs_result.get("exclusion_summary", summarize_exclusions(fs_result["exclusions"])),
         "filesystem_counts": fs_result["counts"],
         "filesystem_status": fs_result["status"],
         "filesystem_elapsed_seconds": fs_result["elapsed_seconds"],
@@ -798,7 +908,7 @@ def csv_bytes(rows, headers):
 
 
 def safe_json_bytes(value):
-    return (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8-sig", errors="replace")
+    return (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8", errors="replace")
 
 
 def generate_readme(payload, selected, included_counts):
@@ -856,7 +966,11 @@ def build_package(payload, choices, output_dir):
     software = [r for r in system.get("software", []) if r.get("Include", False)] if selected.get("software") else []
     drives = system.get("drives", []) if selected.get("drives") else []
     warnings = (payload.get("warnings", []) + payload.get("scan_warnings", [])) if selected.get("warnings") else []
-    exclusions = payload.get("exclusions", []) if selected.get("security") else []
+    if "exclusion_summary" in payload:
+        exclusion_rows = payload.get("exclusion_summary") or []
+    else:
+        exclusion_rows = summarize_exclusions(payload.get("exclusions", []))
+    exclusions = exclusion_rows if selected.get("security") else []
     system_out = json.loads(json.dumps(system, ensure_ascii=False)) if selected.get("system") else {}
     if system_out and selected.get("software"):
         included_apps = [r for r in system.get("software", []) if r.get("Include", False)]
@@ -874,7 +988,7 @@ def build_package(payload, choices, output_dir):
         "system": 1 if system_out else 0,
         "software": len(software), "drives": len(drives),
         "folders": len(folders), "files": len(files),
-        "warnings": len(warnings), "security": len(exclusions),
+        "warnings": len(warnings), "security": sum(int(row.get("Count", 0)) for row in exclusions),
     }
     manifest = {
         "schema_version": VERSION,
@@ -907,15 +1021,20 @@ def build_package(payload, choices, output_dir):
             if selected.get("files"):
                 zf.writestr("PC_Context_Pack/04_FILE_INDEX/files.csv", csv_bytes(files, ["Drive","Path","Name","Extension","SizeBytes","Modified","PrivacyCandidate"]))
             if selected.get("security"):
-                zf.writestr("PC_Context_Pack/05_SECURITY/excluded_items_summary.csv", csv_bytes(exclusions, ["Category","Reason"]))
+                zf.writestr("PC_Context_Pack/05_SECURITY/excluded_items_summary.csv", csv_bytes(exclusions, ["Category","Reason","Count"]))
             if selected.get("warnings"):
                 zf.writestr("PC_Context_Pack/06_SCAN_REPORT/warnings.csv", csv_bytes(warnings, ["Drive","Reason"]))
+            filesystem_counts = payload.get("filesystem_counts", {})
+            fs_warning_count = filesystem_counts.get("warnings", len(payload.get("warnings", [])))
+            warning_rows_count = len(warnings)
             zf.writestr("PC_Context_Pack/06_SCAN_REPORT/scan_report.json", safe_json_bytes({
                 "scan_status": payload.get("filesystem_status"),
-                "filesystem_counts": payload.get("filesystem_counts"),
+                "filesystem_counts": filesystem_counts,
                 "elapsed_seconds": payload.get("filesystem_elapsed_seconds"),
-                "warnings_count": len(payload.get("warnings", [])) + len(payload.get("scan_warnings", [])),
-                "excluded_count": len(payload.get("exclusions", [])),
+                "warnings_count": fs_warning_count + len(payload.get("scan_warnings", [])),
+                "warnings_rows_included": warning_rows_count,
+                "warnings_details_truncated": bool(selected.get("warnings")) and fs_warning_count > len(payload.get("warnings", [])),
+                "excluded_count": filesystem_counts.get("skipped", len(payload.get("exclusions", []))),
                 "roots_scanned": payload.get("roots", []),
             }))
             zf.writestr("PC_Context_Pack/06_SCAN_REPORT/manifest.json", safe_json_bytes(manifest))
@@ -1112,6 +1231,13 @@ class ReviewWindow(Toplevel):
         self.software_tree.delete(*self.software_tree.get_children())
         for i, a in enumerate(self.software_rows):
             self.software_tree.insert("", "end", iid=str(i), values=("はい" if a.get("Include",False) else "いいえ",a.get("Name",""),a.get("Version",""),a.get("Publisher",""),a.get("InstallLocation","")))
+        self._update_software_page_label()
+
+    def _update_software_page_label(self):
+        if not hasattr(self, "software_page_label"):
+            return
+        rows = self._filtered_software_rows()
+        pages = max(1, (len(rows) + SOFTWARE_PAGE_SIZE - 1) // SOFTWARE_PAGE_SIZE)
         included = sum(1 for r in self.payload["system"].get("software", []) if r.get("Include",False))
         self.software_page_label.configure(text=f"検索結果 {len(rows):,} 件 / 全アプリ {len(self.payload['system'].get('software', [])):,} 件 / 選択 {included:,} 件 / ページ {self.software_page+1}/{pages}（1ページ {SOFTWARE_PAGE_SIZE} 件）")
 
@@ -1126,6 +1252,8 @@ class ReviewWindow(Toplevel):
     def _set_visible_software(self, value):
         for row in self.software_rows:
             row["Include"] = value
+        if value and any(row.get("Include", False) for row in self.software_rows):
+            self.categories["software"].set(True)
         self._refresh_software_tree()
 
     def _toggle_software(self, event):
@@ -1137,6 +1265,9 @@ class ReviewWindow(Toplevel):
             vals = list(self.software_tree.item(item, "values"))
             vals[0] = "はい" if row["Include"] else "いいえ"
             self.software_tree.item(item, values=vals)
+            if row["Include"]:
+                self.categories["software"].set(True)
+            self._update_software_page_label()
         except (IndexError, ValueError):
             return
 
@@ -1214,7 +1345,7 @@ class ReviewWindow(Toplevel):
         file_table.grid_columnconfigure(0, weight=1)
         self.file_tree.bind("<Double-1>", self._toggle_selected_file)
         self._refresh_file_tree()
-        self.file_hint = ttk.Label(f, text="", foreground="#555"); self.file_hint.pack(anchor="w", pady=(5,0))
+        self.file_hint = ttk.Label(f, text="", foreground="#555"); self.file_hint.pack(side="bottom", anchor="w", pady=(5,0))
         self._update_file_hint()
 
     def _visible_folder_rows(self):
@@ -1234,6 +1365,11 @@ class ReviewWindow(Toplevel):
         self.folder_rows = self._visible_folder_rows()
         for i, r in enumerate(self.folder_rows):
             self.folder_tree.insert("", "end", iid=str(i), values=("はい" if r.get("Include",False) else "いいえ",r.get("Drive",""),r.get("Path",""),r.get("Depth",0)))
+        self._update_folder_page_label()
+
+    def _update_folder_page_label(self):
+        if not hasattr(self, "folder_page_label"):
+            return
         query = self.folder_search_var.get().strip().casefold()
         total = len(self.payload["folders"])
         if query:
@@ -1256,14 +1392,20 @@ class ReviewWindow(Toplevel):
         try:
             row = self.folder_rows[int(item)]
             row["Include"] = not row.get("Include", False)
-            vals = list(self.folder_tree.item(item, "values")); vals[0] = "はい" if row["Include"] else "いいえ"
+            vals = list(self.folder_tree.item(item, "values"))
+            vals[0] = "はい" if row["Include"] else "いいえ"
             self.folder_tree.item(item, values=vals)
+            if row["Include"]:
+                self.categories["folders"].set(True)
+            self._update_folder_page_label()
         except (IndexError, ValueError):
             return
 
     def _set_visible_folders(self, value):
         for row in self.folder_rows:
             row["Include"] = value
+        if value and any(row.get("Include", False) for row in self.folder_rows):
+            self.categories["folders"].set(True)
         self._refresh_folder_tree()
 
     def _visible_file_rows(self):
@@ -1283,6 +1425,9 @@ class ReviewWindow(Toplevel):
         self.file_page_rows = self._visible_file_rows()
         for i, r in enumerate(self.file_page_rows):
             self.file_tree.insert("", "end", iid=str(i), values=("はい" if r.get("Include") else "いいえ", r["Name"], r["Extension"], format_bytes(r["SizeBytes"]), r["Modified"], r["PrivacyCandidate"], r["Path"]))
+        self._update_file_page_label()
+
+    def _update_file_page_label(self):
         self._update_file_hint()
         query = self.file_search_var.get().strip().casefold()
         total = len(self.payload["files"])
@@ -1308,15 +1453,24 @@ class ReviewWindow(Toplevel):
             self.file_hint.configure(text=f"表示 {shown:,} 件 / 全体 {total:,} 件 / 現在の選択 {included:,} 件。検索・ページ移動で全件を確認できます。1ページ {FILE_PAGE_SIZE} 件です。")
 
     def _toggle_selected_file(self, event=None):
-        item = self.file_tree.identify_row(event.y) if event else None
-        if not item:
+        if event is not None:
+            item = self.file_tree.identify_row(event.y)
+            if not item:
+                return
+        else:
             sel = self.file_tree.selection()
-            if not sel: return
+            if not sel:
+                return
             item = sel[0]
         try:
             row = self.file_page_rows[int(item)]
             row["Include"] = not row.get("Include", False)
-            self._refresh_file_tree()
+            vals = list(self.file_tree.item(item, "values"))
+            vals[0] = "はい" if row["Include"] else "いいえ"
+            self.file_tree.item(item, values=vals)
+            if row["Include"]:
+                self.categories["files"].set(True)
+            self._update_file_page_label()
         except (IndexError, ValueError):
             return
 
@@ -1325,13 +1479,16 @@ class ReviewWindow(Toplevel):
             if value and row.get("PrivacyCandidate") == "Yes":
                 continue
             row["Include"] = value
+        if value and any(row.get("Include", False) for row in self.file_page_rows):
+            self.categories["files"].set(True)
         self._refresh_file_tree()
 
     def _build_warnings_tab(self):
         f = self._tab("除外・未取得")
         counts = self.payload["filesystem_counts"]
-        self._category_check(f, "security", f"除外理由の集計を梱包する（検出 {len(self.payload.get('exclusions',[])):,} 件）")
-        warning_total = len(self.payload.get("warnings", [])) + len(self.payload.get("scan_warnings", []))
+        exclusion_total = counts.get("exclusions", counts.get("skipped", len(self.payload.get("exclusions", []))))
+        self._category_check(f, "security", f"除外理由の集計を梱包する（検出 {exclusion_total:,} 件）")
+        warning_total = counts.get("warnings", len(self.payload.get("warnings", []))) + len(self.payload.get("scan_warnings", []))
         self._category_check(f, "warnings", f"スキャン警告を梱包する（{warning_total:,} 件）")
         text = (
             f"スキップされた項目：{counts['skipped']:,} 件\n"
@@ -1358,12 +1515,24 @@ class ReviewWindow(Toplevel):
             f"除外集計：{'含む' if self.categories['security'].get() else '除外'}",
         ]
         msg = "以下の内容でAI向けZIPを作成します。\n\n" + "\n".join(summary) + "\n\nZIP内のファイル名・パス・メタデータは閲覧可能です。個人情報が含まれていないことを確認しましたか？"
-        if not messagebox.askyesno("最終確認", msg, parent=self):
+        confirmed = messagebox.askyesno("最終確認", msg, parent=self)
+        try:
+            if not self.winfo_exists():
+                return
+        except Exception:
+            return
+        if not confirmed:
             return
         sensitive_included = sum(1 for r in self.payload["files"] if r.get("Include") and r.get("PrivacyCandidate") == "Yes") if self.categories["files"].get() else 0
         if sensitive_included:
             msg += f"\n\n警告：機微候補として検出されたファイル名が {sensitive_included:,} 件含まれます。必要なものだけを残してください。"
-            if not messagebox.askyesno("機微候補の最終確認", msg + "\n\nこの内容で続行しますか？", parent=self):
+            confirmed_sensitive = messagebox.askyesno("機微候補の最終確認", msg + "\n\nこの内容で続行しますか？", parent=self)
+            try:
+                if not self.winfo_exists():
+                    return
+            except Exception:
+                return
+            if not confirmed_sensitive:
                 return
         self.result = {"categories": {k:v.get() for k,v in self.categories.items()}}
         result = self.result
@@ -1414,7 +1583,23 @@ class DriveSelection(Toplevel):
         ttk.Button(btns, text="この範囲でスキャン", command=self._accept).pack(side="right")
         self.protocol("WM_DELETE_WINDOW", self._cancel)
         self.update_idletasks()
-        self.geometry(f"+{master.winfo_rootx()+80}+{master.winfo_rooty()+80}")
+        width = max(1, self.winfo_reqwidth())
+        height = max(1, self.winfo_reqheight())
+        screen_w = self.winfo_screenwidth()
+        screen_h = self.winfo_screenheight()
+        try:
+            master_minimized = master.state() == "iconic"
+        except Exception:
+            master_minimized = True
+        if master_minimized:
+            x = (screen_w - width) // 2
+            y = (screen_h - height) // 2
+        else:
+            x = master.winfo_rootx() + 80
+            y = master.winfo_rooty() + 80
+        x = max(0, min(x, max(0, screen_w - width)))
+        y = max(0, min(y, max(0, screen_h - height)))
+        self.geometry(f"+{x}+{y}")
         # Deliberately modeless at the native-window level. App disables its
         # scan button while this selector is open; no transient/grab lock.
         self.after(100, self._activate_window)
@@ -1453,6 +1638,8 @@ class App:
         self.root.minsize(760, 560)
         self.q = queue.Queue()
         self.cancel_event = threading.Event()
+        self._closing = False
+        self._export_in_progress = False
         self.worker = None
         self.payload = None
         self.selected_roots = []
@@ -1478,6 +1665,8 @@ class App:
     def _on_review_closed(self, window):
         if self.review_window is window:
             self.review_window = None
+        if self._closing:
+            return
         try:
             if self.root.winfo_exists():
                 self.start_btn.configure(state="normal")
@@ -1485,20 +1674,43 @@ class App:
             pass
 
     def _request_close(self):
+        if self._export_in_progress:
+            # The native directory chooser/message box runs a nested Tk event loop.
+            # Keep the root alive until that operation has returned.
+            try:
+                self.status.set("出力先選択またはZIP作成が終了してから閉じてください。")
+            except Exception:
+                pass
+            return
+        if self._closing:
+            return
         if self.worker and self.worker.is_alive():
             if not messagebox.askyesno("終了確認", "スキャン中です。停止してアプリを終了しますか？", parent=self.root):
                 return
+            self._closing = True
             self.cancel_event.set()
-            self.status.set("スキャンを停止して終了しています...")
+            try:
+                self.status.set("スキャンを停止して終了しています...")
+            except Exception:
+                pass
             self.root.after(200, self._finish_close_when_stopped)
         else:
+            self._closing = True
             self.root.destroy()
 
     def _finish_close_when_stopped(self):
-        if self.worker and self.worker.is_alive():
-            self.root.after(200, self._finish_close_when_stopped)
+        if self._closing and self.worker and self.worker.is_alive():
+            try:
+                if self.root.winfo_exists():
+                    self.root.after(200, self._finish_close_when_stopped)
+            except Exception:
+                pass
         else:
-            self.root.destroy()
+            try:
+                if self.root.winfo_exists():
+                    self.root.destroy()
+            except Exception:
+                pass
 
     def _build(self):
         outer = ttk.Frame(self.root, padding=20)
@@ -1538,6 +1750,8 @@ class App:
         ttk.Label(outer, text=f"v{VERSION} • Python標準ライブラリのみ • Windows 11 x64", foreground="#666").pack(anchor="e", pady=(10,0))
 
     def start_scan(self):
+        if self._closing:
+            return
         if self.review_window is not None:
             try:
                 if self.review_window.winfo_exists():
@@ -1595,9 +1809,13 @@ class App:
         self.cancel_btn.configure(state="disabled")
 
     def _poll(self):
+        if self._closing:
+            return
         try:
             while True:
                 kind, data = self.q.get_nowait()
+                if self._closing:
+                    return
                 if kind == "status":
                     self.status.set(data)
                 elif kind == "progress":
@@ -1609,15 +1827,27 @@ class App:
                     self.status.set("スキャンをキャンセルしました。ZIPは作成していません。")
                     self.progress.set("")
                 elif kind == "done":
+                    if self._closing or self.cancel_event.is_set():
+                        continue
                     self.payload = data
                     self.pb.stop()
                     self.start_btn.configure(state="normal")
                     self.cancel_btn.configure(state="disabled")
                     self.status.set("スキャンが終了しました。収集結果を確認してください。")
                     self.progress.set(f"ファイル {len(data['files']):,} 件 / フォルダー {len(data['folders']):,} 件 / 状態 {data['filesystem_status']}")
-                    self.start_btn.configure(state="disabled")
-                    self.review_window = ReviewWindow(self.root, self.payload, self.create_zip)
-                    self.review_window.set_on_close(self._on_review_closed)
+                    try:
+                        review = ReviewWindow(self.root, self.payload, self.create_zip)
+                        self.review_window = review
+                        review.set_on_close(self._on_review_closed)
+                        self.start_btn.configure(state="disabled")
+                    except Exception as exc:
+                        self.review_window = None
+                        self.start_btn.configure(state="normal")
+                        self.status.set("レビュー画面を開けませんでした。スキャン結果は保持されています。")
+                        try:
+                            messagebox.showerror("レビュー画面エラー", f"{type(exc).__name__}: {exc}", parent=self.root)
+                        except Exception:
+                            pass
                 elif kind == "error":
                     self.pb.stop()
                     self.start_btn.configure(state="normal")
@@ -1626,26 +1856,96 @@ class App:
                     messagebox.showerror("スキャンエラー", data[-5000:], parent=self.root)
         except queue.Empty:
             pass
-        self.root.after(200, self._poll)
+        except Exception as exc:
+            if not self._closing:
+                try:
+                    self.pb.stop()
+                    self.start_btn.configure(state="normal")
+                    self.cancel_btn.configure(state="disabled")
+                    self.status.set(f"画面更新エラー: {type(exc).__name__}")
+                except Exception:
+                    pass
+        finally:
+            if not self._closing:
+                try:
+                    if self.root.winfo_exists():
+                        self.root.after(200, self._poll)
+                except Exception:
+                    pass
 
     def create_zip(self, choices, review_window=None):
-        dialog_parent = review_window or self.root
-        output = filedialog.askdirectory(title="AI向けZIPの出力先を選択してください", mustexist=True, parent=dialog_parent)
-        if not output:
-            messagebox.showinfo("キャンセル", "出力先が選択されなかったため、ZIPは作成していません。レビュー画面に戻ります。", parent=dialog_parent)
+        if self._closing or self._export_in_progress:
             return False
         try:
+            if not self.root.winfo_exists():
+                return False
+        except Exception:
+            return False
+        preferred_parent = review_window or self.root
+        try:
+            if preferred_parent.winfo_exists():
+                dialog_parent = preferred_parent
+            else:
+                dialog_parent = self.root
+        except Exception:
+            dialog_parent = self.root
+        self._export_in_progress = True
+        try:
+            output = filedialog.askdirectory(
+                title="AI向けZIPの出力先を選択してください", mustexist=True, parent=dialog_parent
+            )
+            if self._closing or not self.root.winfo_exists():
+                return False
+            if review_window is not None:
+                try:
+                    if not review_window.winfo_exists():
+                        return False
+                except Exception:
+                    return False
+            dialog_parent = review_window if review_window is not None else self.root
+            try:
+                if not dialog_parent.winfo_exists():
+                    dialog_parent = self.root
+            except Exception:
+                dialog_parent = self.root
+            if not output:
+                messagebox.showinfo(
+                    "キャンセル", "出力先が選択されなかったため、ZIPは作成していません。レビュー画面に戻ります。",
+                    parent=dialog_parent,
+                )
+                return False
             self.status.set("AI向けZIPを作成し、整合性を検査しています...")
             self.root.update_idletasks()
             path, counts, size = build_package(self.payload, choices, output)
+            if self._closing or not self.root.winfo_exists():
+                return True
             self.status.set("ZIPの作成と整合性検査が完了しました。")
             self.progress.set(path)
-            messagebox.showinfo("作成完了", f"AI向けZIPを作成しました。\n\n保存先：{path}\nサイズ：{format_bytes(size)}\n\n収録件数：\n" + "\n".join(f"{k}: {v:,}" for k,v in counts.items()) + "\n\nZIPの中身を確認してからAIアシスタントに共有してください。", parent=dialog_parent)
+            messagebox.showinfo(
+                "作成完了",
+                f"AI向けZIPを作成しました。\n\n保存先：{path}\nサイズ：{format_bytes(size)}\n\n収録件数：\n"
+                + "\n".join(f"{k}: {v:,}" for k, v in counts.items())
+                + "\n\nZIPの中身を確認してからAIアシスタントに共有してください。",
+                parent=dialog_parent,
+            )
             return True
         except Exception as exc:
-            self.status.set("ZIPの作成に失敗しました。")
-            messagebox.showerror("ZIP作成エラー", f"{type(exc).__name__}: {exc}", parent=dialog_parent)
+            try:
+                if not self._closing and self.root.winfo_exists():
+                    self.status.set("ZIPの作成に失敗しました。")
+                    try:
+                        parent_exists = dialog_parent.winfo_exists()
+                    except Exception:
+                        parent_exists = False
+                    error_parent = dialog_parent if parent_exists else self.root
+                    messagebox.showerror(
+                        "ZIP作成エラー", f"{type(exc).__name__}: {exc}", parent=error_parent
+                    )
+            except Exception:
+                pass
             return False
+        finally:
+            self._export_in_progress = False
 
 
 def self_test():
@@ -1657,6 +1957,49 @@ def self_test():
     assert is_sensitive_name("adbkey", r"C:\Users\Example\.android\adbkey")
     assert is_sensitive_name("adbkey.pub", r"C:\Users\Example\.android\adbkey.pub")
     assert not is_sensitive_name("vacation.jpg")
+    assert not is_sensitive_name("syntax.py")
+    assert not is_sensitive_name("taxonomy_notes.txt")
+    assert not is_sensitive_name("classnames.py")
+    assert not is_sensitive_name("processname.log")
+    assert not is_sensitive_name("accessname.txt")
+    assert not is_sensitive_name("soundbank.dat")
+    assert not is_sensitive_name("databank.db")
+    assert not is_sensitive_name("powerbank.jpg")
+    assert not is_sensitive_name("tokenizer.py")
+    assert is_sensitive_name("token.json")
+    assert is_sensitive_name("bank_statement.pdf")
+    assert is_sensitive_name("tax_return.pdf")
+    assert is_sensitive_name("my_ssn.txt")
+    assert not is_sensitive_name("normal.txt", r"C:\Users\Taxonomy\Documents\normal.txt")
+    assert not is_sensitive_name("Documents", r"C:\Users\Syntax\Documents")
+    isolated_sync_env = {name: "" for name in CLOUD_SYNC_ROOT_ENV_VARS}
+    with __import__("unittest.mock", fromlist=["patch"]).patch.dict(os.environ, isolated_sync_env, clear=False):
+        test_dir_path = r"C:\Users\Syntax\Documents"
+        skip_result = should_skip_dir("Documents", 0, test_dir_path)
+        assert not skip_result[0], (
+            f"skip_result={skip_result}; "
+            f"system_excluded={'documents' in {x.casefold() for x in EXCLUDED_DIR_NAMES}}; "
+            f"sensitive_dir={is_sensitive_dir('Documents', test_dir_path)}; "
+            f"sensitive_name={is_sensitive_name('Documents', test_dir_path)}; "
+            f"cloud_sync={is_cloud_sync_directory('Documents', test_dir_path)}"
+        )
+    bad_modified, bad_modified_error = format_modified_timestamp(float("inf"))
+    assert bad_modified == "" and bad_modified_error in {"OverflowError", "OSError", "ValueError"}
+    nan_modified, nan_modified_error = format_modified_timestamp(float("nan"))
+    assert nan_modified == "" and nan_modified_error in {"OverflowError", "OSError", "ValueError"}
+    json_probe = safe_json_bytes({"ok": True, "text": "日本語"})
+    assert not json_probe.startswith(b"\xef\xbb\xbf")
+    assert json.loads(json_probe.decode("utf-8"))["ok"] is True
+
+    exclusion_sample = []
+    exclusion_totals = {}
+    warning_sample = []
+    warning_total = 0
+    for _ in range(5003):
+        record_exclusion("file", "synthetic_skip", exclusion_sample, exclusion_totals)
+        warning_total = record_warning("C:", "synthetic_warning", warning_sample, warning_total)
+    assert len(exclusion_sample) == 5000 and exclusion_totals[("file", "synthetic_skip")] == 5003
+    assert len(warning_sample) == 5000 and warning_total == 5003
 
     # CSV values originating from file names, paths, and registry metadata must
     # not become spreadsheet formulas when opened by common spreadsheet apps.
@@ -1673,6 +2016,37 @@ def self_test():
     assert is_sensitive_dir("gcloud", r"C:\\Users\\Example\\.config\\gcloud")
     assert not is_sensitive_dir("gcloudish", r"C:\\Users\\Example\\.config\\gcloudish")
     assert is_cloud_sync_directory("OneDrive - Contoso", r"C:\\Users\\Example\\OneDrive - Contoso")
+    mock = __import__("unittest.mock", fromlist=["patch"])
+    sync_env = {name: "" for name in CLOUD_SYNC_ROOT_ENV_VARS}
+    sync_env.update({"USERPROFILE": r"C:\Users\Example", "BOX_DRIVE": ""})
+    with mock.patch.dict(os.environ, sync_env, clear=False):
+        assert is_cloud_sync_directory("Box", r"C:\Users\Example\Box")
+        assert not is_cloud_sync_directory("box", r"C:\src\project\box")
+        with mock.patch("os.path.expandvars", wraps=os.path.expandvars) as expandvars_mock:
+            assert not is_cloud_sync_directory("box", r"C:\src\project\box")
+            assert expandvars_mock.call_count == 0
+    assert "$loc.Equals($userProfile" in PS_SCRIPT
+    assert "$loc.StartsWith(($userProfile +" in PS_SCRIPT
+    import inspect
+    assert "ntpath.dirname(candidate_path)" in inspect.getsource(is_cloud_sync_directory)
+
+    # An invalid timestamp must not abort the surrounding filesystem scan.
+    with tempfile.TemporaryDirectory() as td_timestamp:
+        timestamp_file = Path(td_timestamp) / "bad_timestamp.txt"
+        timestamp_file.write_text("metadata only", encoding="utf-8")
+        timestamp_q = queue.Queue()
+        with mock.patch(__name__ + ".format_modified_timestamp", return_value=("", "OverflowError")):
+            scan_filesystem([td_timestamp], timestamp_q, threading.Event())
+        timestamp_results = [
+            item[1] for item in list(timestamp_q.queue) if item[0] == "filesystem_done"
+        ]
+        assert len(timestamp_results) == 1
+        timestamp_result = timestamp_results[0]
+        timestamp_row = next(row for row in timestamp_result["files"] if row["Name"] == "bad_timestamp.txt")
+        assert timestamp_row["Modified"] == ""
+        assert timestamp_result["counts"]["errors"] == 1
+        assert timestamp_result["counts"]["warnings"] == 1
+        assert timestamp_result["status"] == "partial_errors"
 
     # The PowerShell collector must drain both pipes while the child process is
     # running. This regression emits much more than a typical Windows pipe buffer
@@ -1709,6 +2083,14 @@ def self_test():
     assert is_expected_protected_directory_path(r"C:\$Recycle.Bin")
     assert is_expected_protected_directory_path(r"C:\System Volume Information\IndexerVolumeGuid")
     assert not is_expected_protected_directory_path(r"C:\Users\Example\Documents")
+    # Volume metadata is optional, but when the platform API returns values
+    # they must flow into the storage summary.
+    with mock.patch("os.path.isdir", return_value=True), \
+         mock.patch("shutil.disk_usage", return_value=__import__("types").SimpleNamespace(total=1000, free=400)), \
+         mock.patch(__name__ + ".get_volume_information", return_value=("System", "NTFS")):
+        drive_rows = get_drive_metadata(["C:\\"])
+    assert drive_rows[0]["VolumeName"] == "System" and drive_rows[0]["FileSystem"] == "NTFS"
+
     with tempfile.TemporaryDirectory() as td_protected:
         protected_root = Path(td_protected) / "$Recycle.Bin"
         protected_root.mkdir()
@@ -1759,7 +2141,30 @@ def self_test():
     start_scan_source = inspect.getsource(App.start_scan)
     assert 'parent=self.root' in start_scan_source
     assert 'self.start_btn.configure(state="disabled")' in start_scan_source
-    assert 'self.review_window.set_on_close(self._on_review_closed)' in inspect.getsource(App._poll)
+    poll_source = inspect.getsource(App._poll)
+    assert "review.set_on_close(self._on_review_closed)" in poll_source
+    assert "finally:" in poll_source and "self.root.after(200, self._poll)" in poll_source
+    assert "self.cancel_event.is_set()" in poll_source
+    assert "review = ReviewWindow(" in poll_source
+    assert "_export_in_progress" in inspect.getsource(App._request_close)
+    assert "self._export_in_progress = False" in inspect.getsource(App.create_zip)
+    assert "if not item:" in inspect.getsource(ReviewWindow._toggle_selected_file)
+    assert "if event is not None:" in inspect.getsource(ReviewWindow._toggle_selected_file)
+    software_toggle_source = inspect.getsource(ReviewWindow._toggle_software)
+    folder_toggle_source = inspect.getsource(ReviewWindow._toggle_selected_folder)
+    file_toggle_source = inspect.getsource(ReviewWindow._toggle_selected_file)
+    assert "_refresh_software_tree()" not in software_toggle_source
+    assert "_refresh_folder_tree()" not in folder_toggle_source
+    assert "_refresh_file_tree()" not in file_toggle_source
+    assert "_update_software_page_label()" in software_toggle_source
+    assert "_update_folder_page_label()" in folder_toggle_source
+    assert "_update_file_page_label()" in file_toggle_source
+    approve_source = inspect.getsource(ReviewWindow._approve)
+    assert approve_source.count("if not self.winfo_exists():") == 2
+    assert 'self.categories["software"].set(True)' in software_toggle_source
+    assert 'self.categories["folders"].set(True)' in folder_toggle_source
+    assert 'self.file_hint.pack(side="bottom"' in source_text
+    assert "master_minimized" in drive_init_source and "screen_w - width" in drive_init_source
     assert should_skip_file("hidden.txt", 0x2, r"C:\\test\\hidden.txt")[0]
     assert should_skip_file("system.dat", 0x4, r"C:\\test\\system.dat")[0]
     assert should_skip_file("link.txt", 0x400, r"C:\\test\\link.txt")[0]
@@ -1807,6 +2212,10 @@ def self_test():
             if kind == "filesystem_done":
                 scan_result = data
         assert scan_result is not None
+        assert scan_result["counts"]["exclusions"] == scan_result["counts"]["skipped"]
+        assert sum(row["Count"] for row in scan_result["exclusion_summary"]) == scan_result["counts"]["skipped"]
+        assert scan_result["counts"]["warnings"] == len(scan_result["warnings"])
+        assert not any(row["Reason"] == "sensitive_file_name_candidate" for row in scan_result["exclusions"])
         scanned_names = {r["Name"] for r in scan_result["files"]}
         assert "normal.txt" in scanned_names
         assert ".env" in scanned_names and "my_api_key.txt" in scanned_names
@@ -1844,6 +2253,7 @@ def self_test():
             "warnings": [],
             "scan_warnings": [{"Drive":"local","Reason":"synthetic_warning"}],
             "exclusions": scan_result["exclusions"],
+            "exclusion_summary": scan_result["exclusion_summary"],
             "filesystem_counts": scan_result["counts"],
             "filesystem_status": scan_result["status"],
             "filesystem_elapsed_seconds": scan_result["elapsed_seconds"],
@@ -1863,8 +2273,24 @@ def self_test():
             assert "PC_Context_Pack/00_README_FOR_AI.md" in names
             assert "PC_Context_Pack/04_FILE_INDEX/files.csv" in names
             assert counts["files"] == 1
-            system_text = z.read("PC_Context_Pack/01_PC_PROFILE/system_profile.json").decode("utf-8-sig")
+            system_bytes = z.read("PC_Context_Pack/01_PC_PROFILE/system_profile.json")
+            assert not system_bytes.startswith(b"\xef\xbb\xbf")
+            system_text = system_bytes.decode("utf-8")
+            parsed_system = json.loads(system_text)
             assert "Selected App" in system_text and "Excluded App" not in system_text
+            assert parsed_system["software"][0]["Name"] == "Selected App"
+            for json_name in (
+                "PC_Context_Pack/06_SCAN_REPORT/scan_report.json",
+                "PC_Context_Pack/06_SCAN_REPORT/manifest.json",
+            ):
+                raw_json = z.read(json_name)
+                assert not raw_json.startswith(b"\xef\xbb\xbf")
+                json.loads(raw_json.decode("utf-8"))
+            exclusion_csv = list(csv.DictReader(io.StringIO(
+                z.read("PC_Context_Pack/05_SECURITY/excluded_items_summary.csv").decode("utf-8-sig")
+            )))
+            assert all("Count" in row for row in exclusion_csv)
+            assert sum(int(row["Count"]) for row in exclusion_csv) == fake["filesystem_counts"]["skipped"]
             files_text = z.read("PC_Context_Pack/04_FILE_INDEX/files.csv").decode("utf-8-sig")
             assert "normal.txt" in files_text and ".env" not in files_text and "my_api_key.txt" not in files_text
             warnings_text = z.read("PC_Context_Pack/06_SCAN_REPORT/warnings.csv").decode("utf-8-sig")

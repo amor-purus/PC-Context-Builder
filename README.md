@@ -64,12 +64,13 @@ GitHub Actions 在 Windows runner 上执行语法编译和内置 self-test。CI 
 
 ## 版本状态
 
-- **最新正式发布版本：** v1.0.8（原产品名 AI PC Intelligence）
-- **当前品牌更新：** v1.0.9 候选版本，尚未发布；Windows 11 / CPython 3.14 x64 实机验证已由用户报告全部通过（2026-11-10）
-- v1.0.8 纳入了 Phase 1 安全加固：CSV 公式注入防护、敏感目录多级路径匹配，以及常见云同步目录/同步根目录识别。
-- v1.0.8 的 Windows 11 实机验证记录与 v1.0.7 历史扫描基线见 [VERIFICATION_STATUS.txt](VERIFICATION_STATUS.txt)。
-
-v1.0.9 的改名范围包括应用名称、界面文字、导出 ZIP 文件名及内部目录名称。扫描和隐私过滤逻辑不在本次品牌更新范围内。已发布的 v1.0.8 标签和 Release 保持不变。
+- **最新正式发布版本：** v1.0.8（原产品名 AI PC Intelligence）；v1.0.9 尚未发布。
+- **当前候选版本：** v1.0.9 hardening candidate（2026-11-13）。本轮不只是品牌更新，也包含扫描容错、敏感项与云同步判定、JSON 编码、排除/警告统计，以及 GUI 生命周期加固。
+- 2026-11-13 的后续修订还覆盖 Treeview 单行选择刷新、审核确认弹窗期间的窗口销毁竞态，以及 Box 路径自检的跨平台路径语义。
+- Windows Actions CI 仅验证其 Runner 上的语法编译和内置 self-test；请以 [PR #9 的检查结果](https://github.com/yanchengz685-bot/PC-Context-Builder/pull/9) 为准。CI 不替代目标设备验证。
+- **Windows 11 实机验证：PASS（用户于 2026-11-14 确认）。** 当前加固候选已完成 `check_tool.bat` 自检及完整扫描 → Review → ZIP 导出/完整性检查闭环。详细记录见 [VERIFICATION_STATUS.txt](VERIFICATION_STATUS.txt)。
+- 2026-11-10 的实机 PASS 仍作为此前品牌候选的历史记录保留，不与本轮验证混淆。
+- v1.0.8 纳入了 Phase 1 安全加固：CSV 公式注入防护、敏感目录多级路径匹配，以及常见云同步目录/同步根目录识别。已发布的 v1.0.8 标签和 Release 保持不变。
 
 ## 仓库内容范围
 
