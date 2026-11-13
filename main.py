@@ -11,6 +11,7 @@ import ctypes
 import datetime as dt
 import json
 import os
+import ntpath
 import platform
 import queue
 import re
@@ -314,7 +315,7 @@ def is_cloud_sync_directory(name: str, full_path: str = "") -> bool:
         if user_profile:
             try:
                 profile_path = os.path.normcase(os.path.abspath(user_profile))
-                if os.path.normcase(os.path.dirname(candidate_path)) == profile_path:
+                if os.path.normcase(ntpath.dirname(candidate_path)) == profile_path:
                     return True
             except (OSError, ValueError):
                 pass
@@ -1230,6 +1231,13 @@ class ReviewWindow(Toplevel):
         self.software_tree.delete(*self.software_tree.get_children())
         for i, a in enumerate(self.software_rows):
             self.software_tree.insert("", "end", iid=str(i), values=("はい" if a.get("Include",False) else "いいえ",a.get("Name",""),a.get("Version",""),a.get("Publisher",""),a.get("InstallLocation","")))
+        self._update_software_page_label()
+
+    def _update_software_page_label(self):
+        if not hasattr(self, "software_page_label"):
+            return
+        rows = self._filtered_software_rows()
+        pages = max(1, (len(rows) + SOFTWARE_PAGE_SIZE - 1) // SOFTWARE_PAGE_SIZE)
         included = sum(1 for r in self.payload["system"].get("software", []) if r.get("Include",False))
         self.software_page_label.configure(text=f"検索結果 {len(rows):,} 件 / 全アプリ {len(self.payload['system'].get('software', [])):,} 件 / 選択 {included:,} 件 / ページ {self.software_page+1}/{pages}（1ページ {SOFTWARE_PAGE_SIZE} 件）")
 
@@ -1259,7 +1267,7 @@ class ReviewWindow(Toplevel):
             self.software_tree.item(item, values=vals)
             if row["Include"]:
                 self.categories["software"].set(True)
-            self._refresh_software_tree()
+            self._update_software_page_label()
         except (IndexError, ValueError):
             return
 
@@ -1357,6 +1365,11 @@ class ReviewWindow(Toplevel):
         self.folder_rows = self._visible_folder_rows()
         for i, r in enumerate(self.folder_rows):
             self.folder_tree.insert("", "end", iid=str(i), values=("はい" if r.get("Include",False) else "いいえ",r.get("Drive",""),r.get("Path",""),r.get("Depth",0)))
+        self._update_folder_page_label()
+
+    def _update_folder_page_label(self):
+        if not hasattr(self, "folder_page_label"):
+            return
         query = self.folder_search_var.get().strip().casefold()
         total = len(self.payload["folders"])
         if query:
@@ -1379,9 +1392,12 @@ class ReviewWindow(Toplevel):
         try:
             row = self.folder_rows[int(item)]
             row["Include"] = not row.get("Include", False)
+            vals = list(self.folder_tree.item(item, "values"))
+            vals[0] = "はい" if row["Include"] else "いいえ"
+            self.folder_tree.item(item, values=vals)
             if row["Include"]:
                 self.categories["folders"].set(True)
-            self._refresh_folder_tree()
+            self._update_folder_page_label()
         except (IndexError, ValueError):
             return
 
@@ -1409,6 +1425,9 @@ class ReviewWindow(Toplevel):
         self.file_page_rows = self._visible_file_rows()
         for i, r in enumerate(self.file_page_rows):
             self.file_tree.insert("", "end", iid=str(i), values=("はい" if r.get("Include") else "いいえ", r["Name"], r["Extension"], format_bytes(r["SizeBytes"]), r["Modified"], r["PrivacyCandidate"], r["Path"]))
+        self._update_file_page_label()
+
+    def _update_file_page_label(self):
         self._update_file_hint()
         query = self.file_search_var.get().strip().casefold()
         total = len(self.payload["files"])
@@ -1446,9 +1465,12 @@ class ReviewWindow(Toplevel):
         try:
             row = self.file_page_rows[int(item)]
             row["Include"] = not row.get("Include", False)
+            vals = list(self.file_tree.item(item, "values"))
+            vals[0] = "はい" if row["Include"] else "いいえ"
+            self.file_tree.item(item, values=vals)
             if row["Include"]:
                 self.categories["files"].set(True)
-            self._refresh_file_tree()
+            self._update_file_page_label()
         except (IndexError, ValueError):
             return
 
@@ -1493,12 +1515,24 @@ class ReviewWindow(Toplevel):
             f"除外集計：{'含む' if self.categories['security'].get() else '除外'}",
         ]
         msg = "以下の内容でAI向けZIPを作成します。\n\n" + "\n".join(summary) + "\n\nZIP内のファイル名・パス・メタデータは閲覧可能です。個人情報が含まれていないことを確認しましたか？"
-        if not messagebox.askyesno("最終確認", msg, parent=self):
+        confirmed = messagebox.askyesno("最終確認", msg, parent=self)
+        try:
+            if not self.winfo_exists():
+                return
+        except Exception:
+            return
+        if not confirmed:
             return
         sensitive_included = sum(1 for r in self.payload["files"] if r.get("Include") and r.get("PrivacyCandidate") == "Yes") if self.categories["files"].get() else 0
         if sensitive_included:
             msg += f"\n\n警告：機微候補として検出されたファイル名が {sensitive_included:,} 件含まれます。必要なものだけを残してください。"
-            if not messagebox.askyesno("機微候補の最終確認", msg + "\n\nこの内容で続行しますか？", parent=self):
+            confirmed_sensitive = messagebox.askyesno("機微候補の最終確認", msg + "\n\nこの内容で続行しますか？", parent=self)
+            try:
+                if not self.winfo_exists():
+                    return
+            except Exception:
+                return
+            if not confirmed_sensitive:
                 return
         self.result = {"categories": {k:v.get() for k,v in self.categories.items()}}
         result = self.result
@@ -1993,6 +2027,8 @@ def self_test():
             assert expandvars_mock.call_count == 0
     assert "$loc.Equals($userProfile" in PS_SCRIPT
     assert "$loc.StartsWith(($userProfile +" in PS_SCRIPT
+    import inspect
+    assert "ntpath.dirname(candidate_path)" in inspect.getsource(is_cloud_sync_directory)
 
     # An invalid timestamp must not abort the surrounding filesystem scan.
     with tempfile.TemporaryDirectory() as td_timestamp:
@@ -2114,10 +2150,19 @@ def self_test():
     assert "self._export_in_progress = False" in inspect.getsource(App.create_zip)
     assert "if not item:" in inspect.getsource(ReviewWindow._toggle_selected_file)
     assert "if event is not None:" in inspect.getsource(ReviewWindow._toggle_selected_file)
-    assert "self._refresh_software_tree()" in inspect.getsource(ReviewWindow._toggle_software)
-    assert "self._refresh_folder_tree()" in inspect.getsource(ReviewWindow._toggle_selected_folder)
-    assert 'self.categories["software"].set(True)' in inspect.getsource(ReviewWindow._toggle_software)
-    assert 'self.categories["folders"].set(True)' in inspect.getsource(ReviewWindow._toggle_selected_folder)
+    software_toggle_source = inspect.getsource(ReviewWindow._toggle_software)
+    folder_toggle_source = inspect.getsource(ReviewWindow._toggle_selected_folder)
+    file_toggle_source = inspect.getsource(ReviewWindow._toggle_selected_file)
+    assert "_refresh_software_tree()" not in software_toggle_source
+    assert "_refresh_folder_tree()" not in folder_toggle_source
+    assert "_refresh_file_tree()" not in file_toggle_source
+    assert "_update_software_page_label()" in software_toggle_source
+    assert "_update_folder_page_label()" in folder_toggle_source
+    assert "_update_file_page_label()" in file_toggle_source
+    approve_source = inspect.getsource(ReviewWindow._approve)
+    assert approve_source.count("if not self.winfo_exists():") == 2
+    assert 'self.categories["software"].set(True)' in software_toggle_source
+    assert 'self.categories["folders"].set(True)' in folder_toggle_source
     assert 'self.file_hint.pack(side="bottom"' in source_text
     assert "master_minimized" in drive_init_source and "screen_w - width" in drive_init_source
     assert should_skip_file("hidden.txt", 0x2, r"C:\\test\\hidden.txt")[0]
