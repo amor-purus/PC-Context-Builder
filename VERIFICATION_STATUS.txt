@@ -1,17 +1,26 @@
 PC Context Builder - Verification status
 Latest released version: v1.0.8
-Updated: 2026-11-10
+Updated: 2026-11-13
 
-v1.0.9 branding candidate — not yet released:
+v1.0.9 hardening candidate — not yet released (2026-11-13):
+- Current source adds scan timestamp-error containment, tighter sensitive-name boundaries, bounded cloud-sync detection, storage volume label/filesystem metadata, UTF-8 JSON without BOM, and exact total counts for exclusions/warnings when detail samples are capped.
+- GUI changes harden scan polling, cancellation/shutdown, export lifecycle, drive-selection placement, and per-row selection/count synchronization.
+- Follow-up review fixes now update Treeview rows and count labels without rebuilding the page (preserving scroll position), check ReviewWindow existence after each final-confirmation dialog, and use ntpath.dirname for Windows Box-path semantics in self-tests on non-Windows hosts.
+- Regression self-tests assert the new selection-refresh and dialog-lifecycle contracts, alongside the existing scan/export checks.
+- Windows Actions CI passed on the preceding hardening baseline commit a21409ddd8a9a66b052f4b179c0f7cd094cee9bf (run #200): CPython 3.14 x64 setup, syntax compilation, and built-in self-test all succeeded. The follow-up review revision must pass its own latest PR checks before merge.
+- Windows 11 target-device verification for the exact 2026-11-13 hardening revision: PENDING. The 2026-11-10 device report below is historical and applies only to the pre-hardening branding candidate.
+- Required target-device verification: run check_tool.bat and confirm SELF-TEST PASS; then perform a complete scan, review selections and warnings, create a ZIP, and inspect ZIP integrity/content. Record the actual result and any partial_errors; do not infer PASS from CI.
+- Current development PR: https://github.com/yanchengz685-bot/PC-Context-Builder/pull/9 (Draft; not merged). Published v1.0.8 tag and Release remain unchanged.
+- MIT License is present as `LICENSE`; repository remains Private while historical commit-email cleanup is pending.
+
+Earlier v1.0.9 branding-only candidate verification — 2026-11-10 (pre-hardening historical baseline):
 - Product name: PC Context Builder.
-- Current published release remains v1.0.8 under the former name AI PC Intelligence.
-- Candidate code renames the GUI and context-pack output paths/names to PC Context Builder / PC_Context_Pack.
-- Intended scope is branding, output naming, generated package documentation, and regression expectations only; scan collection and privacy-filter logic are unchanged.
+- This predecessor code renamed the GUI and context-pack output paths/names to PC Context Builder / PC_Context_Pack; its scope did not include the 2026-11-13 scanning, filtering, export, or GUI hardening.
 - GitHub Actions Windows CI: PASS on candidate commit 539efb2500e519b45f7bc730e5dbdb14458d3498 (workflow run #42770007064), including CPython 3.14 x64 setup, syntax compilation, and built-in self-test with synthetic ZIP naming/path assertions.
 - Windows 11 target-device verification (user-reported, 2026-11-10; Windows 11 / CPython 3.14 x64): SELF-TEST PASS; GUI startup PASS; real scan PASS; Review PASS; ZIP export PASS.
 - Merged main candidate commit 01e2e494a09c635174eb55287355eded35369d38: Windows Actions PASS (run #42770196706); the preceding PR validation also passed.
 - Post-license main commit 94193e73c93e5b3e6d9d0673de14e0bba60069a1: Windows Actions PASS (run #42771639037).
-- MIT License added as `LICENSE`. Repository remains Private while historical commit-email cleanup is pending.
+- The 2026-11-10 device result is not evidence that the later 2026-11-13 hardening code has passed on the target PC.
 
 v1.0.8 release verification — Phase 1 security hardening:
 - Release state: published GitHub Release and v1.0.8 tag (2026-11-10).
