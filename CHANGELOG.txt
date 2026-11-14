@@ -1,10 +1,11 @@
-PC Context Builder v1.0.9 — hardening candidate, not yet published (2026-11-13)
+PC Context Builder v1.0.9 — Released 2026-11-13
 - Extend the previous branding candidate with scan robustness, sensitive-name/path boundary corrections, cloud-sync root detection, storage volume metadata, JSON UTF-8 without BOM, and complete exclusion/warning event counts beyond capped detail samples.
 - Harden Tk GUI lifecycle, including scan polling/shutdown, export-in-progress handling, and drive-selection placement. Preserve the privacy boundary: no file contents are read and no machine-unique volume serial is exported.
 - Follow-up review fixes preserve Treeview scroll position when toggling individual software, folder, or file rows; guard ReviewWindow after both final-confirmation dialogs; and use Windows path semantics for Box-path regression checks so --self-test is portable across host OS path modules.
 - Regression self-tests cover these behaviors. Final Windows Actions PR run #222 passed on commit 1d473d59ce0bd84f19fe2edcb7c9840913b9802c: CPython 3.14 x64 setup, syntax compilation, and built-in self-test. PR #9 was squash-merged into main on 2026-11-14 as 0af4f7cdbe7cbf5cd0e30c9e57a3faa336831061.
 - Windows 11 target-device verification for the current hardening candidate: PASS (user-confirmed 2026-11-14), including check_tool.bat SELF-TEST and the complete scan → Review → ZIP export/integrity-check workflow. The 2026-11-10 report remains a separate historical result for the predecessor branding-only candidate.
-- Keep the published v1.0.8 tag and Release unchanged.
+- Published GitHub Release: https://github.com/yanchengz685-bot/PC-Context-Builder/releases/tag/v1.0.9
+- Tag v1.0.9 points to main commit f4b049c64d0e9485719a5e550d399e6f6893618c. The v1.0.8 tag and Release remain unchanged.
 
 Earlier v1.0.9 branding-only candidate snapshot — 2026-11-10 (historical; superseded scope)
 - Rename the application from AI PC Intelligence to PC Context Builder.
@@ -15,7 +16,7 @@ Earlier v1.0.9 branding-only candidate snapshot — 2026-11-10 (historical; supe
 - No scanning, collection, privacy-filtering, or upload behavior changes are intended in this branding update.
 - The v1.0.8 tag and published Release remain unchanged. GitHub Actions Windows CI passed on candidate commit 539efb2500e519b45f7bc730e5dbdb14458d3498 (workflow run #42770007064), including compile and synthetic ZIP self-test. Windows 11 / CPython 3.14 x64 target-device verification was subsequently reported as PASS for SELF-TEST, GUI startup, real scan, Review, and ZIP export (2026-11-10).
 - Follow-up Windows Actions CI passed on main commit 94193e73c93e5b3e6d9d0673de14e0bba60069a1 (workflow run #42771639037).
-- Added the MIT License in `LICENSE`; v1.0.9 remains an unreleased candidate.
+- Added the MIT License in `LICENSE`. This earlier branding-only candidate was superseded by the hardened v1.0.9 release on 2026-11-13.
 
 AI PC Intelligence v1.0.8 — Released 2026-11-10
 - Neutralize spreadsheet formula-triggering prefixes in CSV text cells while preserving numeric values.
