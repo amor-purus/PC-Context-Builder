@@ -1,8 +1,8 @@
 PC Context Builder - Verification status
-Latest released version: v1.0.8
+Latest released version: v1.0.9
 Updated: 2026-11-14
 
-v1.0.9 hardening candidate — not yet released (2026-11-13):
+v1.0.9 — released (2026-11-13):
 - Current source adds scan timestamp-error containment, tighter sensitive-name boundaries, bounded cloud-sync detection, storage volume label/filesystem metadata, UTF-8 JSON without BOM, and exact total counts for exclusions/warnings when detail samples are capped.
 - GUI changes harden scan polling, cancellation/shutdown, export lifecycle, drive-selection placement, and per-row selection/count synchronization.
 - Follow-up review fixes now update Treeview rows and count labels without rebuilding the page (preserving scroll position), check ReviewWindow existence after each final-confirmation dialog, and use ntpath.dirname for Windows Box-path semantics in self-tests on non-Windows hosts.
@@ -11,8 +11,9 @@ v1.0.9 hardening candidate — not yet released (2026-11-13):
 - Windows 11 target-device verification for the current hardening candidate: PASS (user-confirmed 2026-11-14).
 - The user confirmed check_tool.bat SELF-TEST PASS and completion of the full real-device workflow: filesystem scan, Review inspection/selection, ZIP export, and ZIP integrity/content check.
 - This is a user-confirmed result; no scan-volume counts or error metrics were supplied in this confirmation. The separate 2026-11-10 PASS record below remains historical evidence for the predecessor branding-only candidate.
-- PR #9 was marked Ready and squash-merged into `main` on 2026-11-14. Merge commit: `0af4f7cdbe7cbf5cd0e30c9e57a3faa336831061`. Published v1.0.8 tag and Release remain unchanged.
-- MIT License is present as `LICENSE`; repository remains Private while historical commit-email cleanup is pending.
+- PR #9 was marked Ready and squash-merged into `main` on 2026-11-14. Merge commit: `0af4f7cdbe7cbf5cd0e30c9e57a3faa336831061`.
+- Published GitHub Release: https://github.com/yanchengz685-bot/PC-Context-Builder/releases/tag/v1.0.9. Tag v1.0.9 points to commit `f4b049c64d0e9485719a5e550d399e6f6893618c`; the v1.0.8 tag and Release remain unchanged.
+- MIT License is present as `LICENSE`. Historical author/committer email review across all nine current remote branches found only GitHub `users.noreply.github.com` and `noreply@github.com` addresses.
 
 Earlier v1.0.9 branding-only candidate verification — 2026-11-10 (pre-hardening historical baseline):
 - Product name: PC Context Builder.
