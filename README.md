@@ -77,3 +77,7 @@ GitHub Actions 在 Windows runner 上执行语法编译和内置 self-test。CI 
 仓库只包含程序源代码、启动脚本、文档和自动化测试配置。Git 忽略规则同时排除新旧命名的本地 PC 资料包、日志、缓存和临时输出。
 
 本项目采用 MIT License，完整条款见 [LICENSE](LICENSE)。允许使用、复制、修改、分发及商业利用；再分发时须保留版权声明和许可证文本。软件按现状提供，不附带明示或默示保证。
+
+## Public repository policy
+
+The GitHub source repository is intentionally **public** by explicit project-owner decision (confirmed 2026-11-15). Public visibility applies to the project source and documentation; it does not authorize publishing real PC Context Packs or local diagnostic data. Do not commit real exports, scan reports, screenshots, user logs, credentials, tokens, or personal file lists. Review Git history, Actions logs/artifacts, and Release assets for accidental sensitive data on an ongoing basis; public visibility itself does not mean that a complete historical exposure audit has been completed.
