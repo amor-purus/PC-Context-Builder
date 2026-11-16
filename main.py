@@ -17,6 +17,7 @@ import queue
 import re
 import shutil
 import subprocess
+import tempfile
 import sys
 import threading
 import time
@@ -958,6 +959,42 @@ def generate_readme(payload, selected, included_counts):
     return "\n".join(lines) + "\n"
 
 
+def publish_unique_package(temp_path, output_dir, date_tag):
+    """Publish a complete ZIP without replacing an existing file, even under races.
+
+    Hard links are atomic and refuse an existing destination. On Windows file
+    systems without hard-link support, os.rename has the same no-replace rule.
+    No zero-byte final-name placeholder is ever exposed.
+    """
+    suffix = 1
+    while True:
+        name = f"PC_Context_Pack_{date_tag}" + (f"_{suffix}" if suffix > 1 else "") + ".zip"
+        dest = os.path.join(output_dir, name)
+        try:
+            os.link(temp_path, dest)
+        except FileExistsError:
+            suffix += 1
+            continue
+        except OSError:
+            if os.name != "nt":
+                # A portable no-clobber rename is unavailable here; fail safely.
+                raise
+            try:
+                os.rename(temp_path, dest)  # Windows rename does not overwrite.
+            except (FileExistsError, PermissionError):
+                if os.path.lexists(dest):
+                    suffix += 1
+                    continue
+                raise
+            return dest
+        else:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass  # Completed ZIP is already safely published.
+            return dest
+
+
 def build_package(payload, choices, output_dir):
     selected = dict(choices.get("categories", {}))
     system = payload["system"]
@@ -1001,12 +1038,8 @@ def build_package(payload, choices, output_dir):
         "limits": {"max_files": MAX_FILES, "max_folders": MAX_FOLDERS, "max_scan_seconds": MAX_SCAN_SECONDS},
     }
     date_tag = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-    dest = os.path.join(output_dir, f"PC_Context_Pack_{date_tag}.zip")
-    suffix = 2
-    while os.path.exists(dest):
-        dest = os.path.join(output_dir, f"PC_Context_Pack_{date_tag}_{suffix}.zip")
-        suffix += 1
-    temp = dest + ".tmp"
+    descriptor, temp = tempfile.mkstemp(prefix=".PC_Context_Pack_", suffix=".tmp", dir=output_dir)
+    os.close(descriptor)
     try:
         with zipfile.ZipFile(temp, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
             zf.writestr("PC_Context_Pack/00_README_FOR_AI.md", generate_readme(payload, selected, counts))
@@ -1042,7 +1075,7 @@ def build_package(payload, choices, output_dir):
             bad = zf.testzip()
             if bad:
                 raise RuntimeError(f"ZIP integrity check failed: {bad}")
-        os.replace(temp, dest)
+        dest = publish_unique_package(temp, output_dir, date_tag)
         return dest, counts, os.path.getsize(dest)
     except Exception:
         try:
@@ -1951,6 +1984,21 @@ class App:
 def self_test():
     import tempfile
     import io
+
+    # The first name must survive unchanged, including when another exporter
+    # has already reserved it. Publication must consume the complete temp ZIP.
+    with tempfile.TemporaryDirectory() as temp_dir:
+        occupied = os.path.join(temp_dir, "PC_Context_Pack_TEST.zip")
+        with open(occupied, "wb") as handle:
+            handle.write(b"existing")
+        source = os.path.join(temp_dir, "unique.tmp")
+        with open(source, "wb") as handle:
+            handle.write(b"complete")
+        published = publish_unique_package(source, temp_dir, "TEST")
+        assert os.path.basename(published) == "PC_Context_Pack_TEST_2.zip"
+        assert open(occupied, "rb").read() == b"existing"
+        assert open(published, "rb").read() == b"complete"
+        assert not os.path.exists(source)
 
     assert is_sensitive_name(".env")
     assert is_sensitive_name("my_api_key.txt")
