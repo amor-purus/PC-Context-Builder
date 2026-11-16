@@ -18,6 +18,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import traceback
@@ -1001,12 +1002,12 @@ def build_package(payload, choices, output_dir):
         "limits": {"max_files": MAX_FILES, "max_folders": MAX_FOLDERS, "max_scan_seconds": MAX_SCAN_SECONDS},
     }
     date_tag = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-    dest = os.path.join(output_dir, f"PC_Context_Pack_{date_tag}.zip")
-    suffix = 2
-    while os.path.exists(dest):
-        dest = os.path.join(output_dir, f"PC_Context_Pack_{date_tag}_{suffix}.zip")
-        suffix += 1
-    temp = dest + ".tmp"
+    # Use an exclusive, per-process working file; two exports must never
+    # share the same .tmp path or replace an existing completed ZIP.
+    fd, temp = tempfile.mkstemp(
+        prefix=".PC_Context_Pack_", suffix=".tmp", dir=output_dir
+    )
+    os.close(fd)
     try:
         with zipfile.ZipFile(temp, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
             zf.writestr("PC_Context_Pack/00_README_FOR_AI.md", generate_readme(payload, selected, counts))
@@ -1042,14 +1043,31 @@ def build_package(payload, choices, output_dir):
             bad = zf.testzip()
             if bad:
                 raise RuntimeError(f"ZIP integrity check failed: {bad}")
-        os.replace(temp, dest)
+        suffix = 1
+        while True:
+            label = f"PC_Context_Pack_{date_tag}"
+            if suffix > 1:
+                label += f"_{suffix}"
+            dest = os.path.join(output_dir, label + ".zip")
+            try:
+                if os.name == "nt":
+                    # Windows rename refuses existing destinations, including
+                    # on filesystems where hard links are unavailable.
+                    os.rename(temp, dest)
+                else:
+                    # POSIX rename overwrites; an exclusive hard link does not.
+                    os.link(temp, dest)
+                break
+            except FileExistsError:
+                suffix += 1
         return dest, counts, os.path.getsize(dest)
-    except Exception:
+    finally:
         try:
-            if os.path.exists(temp): os.remove(temp)
+            os.unlink(temp)
+        except FileNotFoundError:
+            pass
         except OSError:
             pass
-        raise
 
 
 class ReviewWindow(Toplevel):
@@ -2309,6 +2327,19 @@ def self_test():
             profile2 = z.read("PC_Context_Pack/01_PC_PROFILE/system_profile.json").decode("utf-8-sig")
             assert "Selected App" not in profile2 and "Drive" not in profile2
             assert counts2["files"] == 0 and counts2["software"] == 0 and counts2["drives"] == 0
+
+        # Concurrent exports must be unique, with no shared .tmp file and
+        # no overwrite of the previously exported ZIP.
+        from concurrent.futures import ThreadPoolExecutor
+        original_bytes = Path(path).read_bytes()
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            concurrent_paths = list(pool.map(
+                lambda _: build_package(fake, choices, td)[0], range(4)
+            ))
+        assert len(set(concurrent_paths + [path, path2])) == 6
+        assert Path(path).read_bytes() == original_bytes
+        assert all(zipfile.is_zipfile(p) for p in concurrent_paths)
+        assert not list(Path(td).glob(".PC_Context_Pack_*.tmp"))
 
         # A CIM timeout must fall back to local, read-only Python metadata and not abort.
         original_runner = run_powershell_json
