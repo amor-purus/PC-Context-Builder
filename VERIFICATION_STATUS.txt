@@ -1,3 +1,24 @@
+PC Context Builder v2.0.0 — verification contract
+Status date: 2026-11-21
+
+The v2.0.0 release gate requires all of:
+- Windows 2025 runner using CPython 3.14.10 x64
+- Syntax compilation of all runtime modules, benchmarks and regression tests
+- Independent privacy/authorization/ZIP/fault-injection unittest suite
+- Legacy --self-test regression suite and synthetic scan performance baseline
+- Frozen PyInstaller GUI EXE successfully executing --self-test
+- Exact ZIP member allowlist, opt-out checks and SHA-256 checksums
+- Release asset bundle complete, staged as a draft and only then made public
+
+Live status: https://github.com/amor-purus/PC-Context-Builder/actions
+Official version: https://github.com/amor-purus/PC-Context-Builder/releases
+
+User-reported Windows 11 GUI testing recorded below concerns previous versions
+unless separately identified. A successful hosted-runner build does not by
+itself prove full GUI behavior on every target machine.
+
+--- HISTORICAL VERIFICATION RECORDS (v1.0.9 and earlier) ---
+
 PC Context Builder - Verification status
 Latest released version: v1.0.9
 Updated: 2026-11-14
@@ -12,7 +33,7 @@ v1.0.9 — released (2026-11-13):
 - The user confirmed check_tool.bat SELF-TEST PASS and completion of the full real-device workflow: filesystem scan, Review inspection/selection, ZIP export, and ZIP integrity/content check.
 - This is a user-confirmed result; no scan-volume counts or error metrics were supplied in this confirmation. The separate 2026-11-10 PASS record below remains historical evidence for the predecessor branding-only candidate.
 - PR #9 was marked Ready and squash-merged into `main` on 2026-11-14. Merge commit: `0af4f7cdbe7cbf5cd0e30c9e57a3faa336831061`.
-- Published GitHub Release: https://github.com/yanchengz685-bot/PC-Context-Builder/releases/tag/v1.0.9. Tag v1.0.9 points to commit `f4b049c64d0e9485719a5e550d399e6f6893618c`; the v1.0.8 tag and Release remain unchanged.
+- Published GitHub Release: https://github.com/amor-purus/PC-Context-Builder/releases/tag/v1.0.9. Tag v1.0.9 points to commit `f4b049c64d0e9485719a5e550d399e6f6893618c`; the v1.0.8 tag and Release remain unchanged.
 - MIT License is present as `LICENSE`. Historical author/committer email review across all nine current remote branches found only GitHub `users.noreply.github.com` and `noreply@github.com` addresses.
 
 Earlier v1.0.9 branding-only candidate verification — 2026-11-10 (pre-hardening historical baseline):

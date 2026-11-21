@@ -18,11 +18,11 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-echo [INFO] Python 3.14 x64 detected. Starting AI PC Intelligence...
+echo [INFO] Python 3.14 x64 detected. Starting PC Context Builder...
 "%PYTHON_EXE%" "%~dp0main.py"
 if errorlevel 1 (
   echo.
-  echo [ERROR] AI PC Intelligence exited with an error.
+  echo [ERROR] PC Context Builder exited with an error.
   pause
 )
 endlocal

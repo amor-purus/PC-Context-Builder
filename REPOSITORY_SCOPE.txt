@@ -1,3 +1,12 @@
-Included: main.py, start.bat, check_tool.bat, README.md, README.txt, CHANGELOG.txt, VERIFICATION_STATUS.txt, SECURITY.md, LICENSE (MIT), docs/GITHUB_SETUP.md, .gitignore, .github/workflows/windows-self-test.yml.
+Included: main.py, privacy_policy.py, context_schema.py, staging_recovery.py,
+tests/test_privacy_integration.py, benchmarks/synthetic_perf.py, start.bat,
+check_tool.bat, README.md, README.txt, CHANGELOG.txt,
+VERIFICATION_STATUS.txt, SECURITY.md, LICENSE (MIT), docs/SCHEMA_V2.md,
+docs/GITHUB_SETUP.md, .gitignore, .github/workflows/windows-self-test.yml.
 
-Excluded: PC_Context_Pack_*.zip, legacy AI_PC_Knowledge_Pack_20261109_152437.zip, and all other real PC inventory exports, screenshots, user logs, and machine-specific data. The repository uses the MIT License; see LICENSE.
+Excluded: all real or synthetic generated PC_Context_Pack_*.zip,
+legacy AI_PC_Knowledge_Pack_*.zip, scan reports, local logs, executable
+build artifacts, user private inventory, screenshots, credentials and
+machine-specific exports.
+
+Repository: https://github.com/amor-purus/PC-Context-Builder
