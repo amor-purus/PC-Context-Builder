@@ -531,7 +531,7 @@ def get_python_fallback_system(roots):
     }
 
 
-def normalize_system_result(raw):
+def normalize_system_result(raw, *, include_python: bool = True):
     os_info = raw.get("OS") or {}
     computer = raw.get("Computer") or {}
     cpu = raw.get("CPU") or []
@@ -587,7 +587,7 @@ def normalize_system_result(raw):
         },
         "drives": drives,
         "software": software,
-        "python_environments": get_python_environments(),
+        "python_environments": get_python_environments() if include_python else [],
         "browser_summary": browser_summary,
     }
 
@@ -828,7 +828,7 @@ def scan_filesystem(roots, q: queue.Queue, cancel_event: threading.Event):
 
 def create_scan_payload(
     q: queue.Queue, cancel_event: threading.Event, selected_roots,
-    *, collect_filesystem: bool = True, collect_software: bool = True,
+    *, collect_filesystem: bool = False, collect_software: bool = False,
 ):
     warnings = []
     q.put(("status", "システム構成を取得しています..."))
@@ -846,7 +846,7 @@ def create_scan_payload(
     except Exception as exc:
         raw = get_python_fallback_system(selected_roots)
         warnings.append({"Drive": "system", "Reason": f"PowerShell_CIM_unavailable_python_fallback_used: {type(exc).__name__}"})
-    system = normalize_system_result(raw)
+    system = normalize_system_result(raw, include_python=collect_software)
     q.put(("status", "ローカル固定ドライブを確認しています..."))
     roots = [r for r in selected_roots if os.path.isdir(r)]
     system["drives"] = get_drive_metadata(roots)
@@ -1041,11 +1041,9 @@ def build_package(payload, choices, output_dir, *, cancel_event=None, progress_c
         key: bool(choices.get("categories", {}).get(key, False))
         for key in context_schema.CATEGORIES
     }
-    scope = privacy_policy.sanitized_scope(
-        payload.get("collection_scope") or {
-            "system": True, "installed_software": True, "filesystem_metadata": True,
-        }
-    )
+    if not isinstance(payload.get("collection_scope"), dict):
+        raise ValueError("缺少明确的采集前授权信息，禁止导出。")
+    scope = privacy_policy.sanitized_scope(payload["collection_scope"])
     if (selected["files"] or selected["folders"]) and not scope["filesystem_metadata"]:
         raise ValueError("没有授权采集文件元数据，禁止导出文件清单。")
     if selected["software"] and not scope["installed_software"]:
@@ -1807,7 +1805,7 @@ class App:
     def _on_review_closed(self, window):
         if self.review_window is window:
             self.review_window = None
-        if self._closing:
+        if self._closing or self._export_in_progress:
             return
         try:
             if self.root.winfo_exists():
@@ -1897,7 +1895,7 @@ class App:
         ttk.Label(outer, text=f"v{VERSION} • Python標準ライブラリのみ • Windows 11 x64", foreground="#666").pack(anchor="e", pady=(10,0))
 
     def start_scan(self):
-        if self._closing:
+        if self._closing or self._export_in_progress:
             return
         if self.review_window is not None:
             try:
@@ -2036,6 +2034,8 @@ class App:
         self._export_in_progress = False
         try:
             self.export_cancel_btn.configure(state="disabled")
+            if self.review_window is None:
+                self.start_btn.configure(state="normal")
         except Exception:
             pass
         if self._closing:
@@ -2097,6 +2097,7 @@ class App:
 
             self.export_cancel_event.clear()
             self.export_cancel_btn.configure(state="normal")
+            self.start_btn.configure(state="disabled")
             self.status.set("バックグラウンドでZIPを作成して検証します……")
             self.progress.set("")
 
@@ -2155,6 +2156,8 @@ class App:
                 self._export_in_progress = False
                 try:
                     self.export_cancel_btn.configure(state="disabled")
+                    if self.review_window is None:
+                        self.start_btn.configure(state="normal")
                 except Exception:
                     pass
 
@@ -2461,6 +2464,10 @@ def self_test():
             folder_rows[0]["Include"] = True
         fake = {
             "scan_time": now_iso(),
+            "collection_scope": {
+                "system": True, "installed_software": True,
+                "filesystem_metadata": True,
+            },
             "system": {
                 "collected_at": now_iso(),
                 "os": {"name":"TestOS","version":"1","build":"1","architecture":"x64"},

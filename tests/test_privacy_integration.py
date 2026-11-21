@@ -95,6 +95,10 @@ class PrivacyGuardTests(unittest.TestCase):
         self.assertFalse(privacy_policy.sanitized_scope(None)["filesystem_metadata"])
         self.assertFalse(privacy_policy.sanitized_scope(None)["installed_software"])
 
+    def test_string_false_is_not_valid_user_consent(self):
+        with self.assertRaises(ValueError):
+            privacy_policy.sanitized_scope({"filesystem_metadata": "false"})
+
     def test_csv_formula_like_values_are_escaped(self):
         for value in ("=1+1", "\t@cmd", "\r+2", "  -1", "\ufeff=HYPERLINK(1)"):
             self.assertTrue(main.sanitize_csv_cell(value).startswith("'"))
@@ -120,6 +124,19 @@ class ScanScopeTests(unittest.TestCase):
         self.assertEqual(done[0]["files"], [])
         self.assertEqual(done[0]["folders"], [])
         self.assertIn("if ($false)", seen[0])
+
+    def test_no_python_registry_enumeration_without_software_consent(self):
+        with (mock.patch.object(main, "run_powershell_json",
+                                return_value={"OS": {}, "Computer": {}, "Software": []}),
+              mock.patch.object(main, "get_python_environments",
+                                side_effect=AssertionError("Python registry must stay untouched")),
+              mock.patch.object(main, "get_drive_metadata", return_value=[]),
+              mock.patch.object(main.os.path, "isdir", return_value=True)):
+            q = queue.Queue()
+            main.create_scan_payload(q, threading.Event(), [r"C:\\"],
+                collect_filesystem=False, collect_software=False)
+        done = [value for kind, value in list(q.queue) if kind == "done"][0]
+        self.assertEqual(done["system"]["python_environments"], [])
 
     def test_explicit_software_optin_changes_powershell_guard(self):
         seen = []
@@ -182,6 +199,13 @@ class ZipExportTests(unittest.TestCase):
         self.assertEqual(len(list(self.folder.glob(".PC_Context_Txn_*.json"))), 0)
         self.assertEqual(len(list(self.folder.glob(".PC_Context_Pack_*.tmp"))), 0)
 
+    def test_missing_collection_scope_fails_closed(self):
+        payload = synthetic_payload()
+        del payload["collection_scope"]
+        with self.assertRaises(ValueError):
+            self.export(payload=payload)
+        self.assertFalse(list(self.folder.iterdir()))
+
     def test_unapproved_file_export_is_blocked(self):
         with self.assertRaises(ValueError):
             self.export(choices=selection(files=True))
@@ -239,6 +263,21 @@ class ZipExportTests(unittest.TestCase):
                 self.export()
         self.assertFalse(list(self.folder.iterdir()))
 
+    def test_tampered_manifest_counts_are_rejected(self):
+        original, _, _ = self.export()
+        bad = self.folder / "tampered.zip"
+        manifest_path = context_schema.ROOT + "06_SCAN_REPORT/manifest.json"
+        with zipfile.ZipFile(original) as source, zipfile.ZipFile(bad, "w") as dest:
+            for name in source.namelist():
+                data = source.read(name)
+                if name == manifest_path:
+                    model = json.loads(data)
+                    model["record_counts"]["drives"] = 999
+                    data = json.dumps(model).encode("utf-8")
+                dest.writestr(name, data)
+        with self.assertRaises(ValueError):
+            context_schema.verify_archive(str(bad), selection()["categories"])
+
     def test_modified_archive_member_allowlist_rejected(self):
         archive, _, _ = self.export()
         with zipfile.ZipFile(archive, "a") as z:
@@ -256,6 +295,29 @@ class ZipExportTests(unittest.TestCase):
         with zipfile.ZipFile(archive) as z:
             data = z.read(context_schema.CATEGORIES["files"])
             self.assertIn(b"doc_4999.txt", data)
+
+
+class GuiStateRegressionTests(unittest.TestCase):
+    def test_closing_review_does_not_reenable_scan_during_export(self):
+        app = object.__new__(main.App)
+        app._closing = False
+        app._export_in_progress = True
+        window = object()
+        app.review_window = window
+        app.start_btn = mock.Mock()
+        app.root = mock.Mock()
+        main.App._on_review_closed(app, window)
+        self.assertIsNone(app.review_window)
+        app.start_btn.configure.assert_not_called()
+
+    def test_direct_scan_start_rejected_during_export(self):
+        app = object.__new__(main.App)
+        app._closing = False
+        app._export_in_progress = True
+        app.root = mock.Mock()
+        with mock.patch.object(main.messagebox, "askyesno") as confirmed:
+            main.App.start_scan(app)
+        confirmed.assert_not_called()
 
 
 class StagingRecoveryTests(unittest.TestCase):

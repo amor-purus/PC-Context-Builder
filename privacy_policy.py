@@ -70,8 +70,12 @@ def sanitized_scope(raw: object) -> dict:
     """Stable boolean scope, independent of UI and application version."""
     if not isinstance(raw, dict):
         raw = {}
-    return {
-        "system": bool(raw.get("system", True)),
-        "installed_software": bool(raw.get("installed_software", False)),
-        "filesystem_metadata": bool(raw.get("filesystem_metadata", False)),
-    }
+    defaults = {"system": True, "installed_software": False,
+                "filesystem_metadata": False}
+    checked = {}
+    for field, default in defaults.items():
+        flag = raw.get(field, default)
+        if type(flag) is not bool:
+            raise ValueError(f"Non-boolean collection consent: {field}")
+        checked[field] = flag
+    return checked

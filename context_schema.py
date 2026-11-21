@@ -5,6 +5,8 @@ instructions. Inspect the complete ZIP before it receives its final name.
 """
 from __future__ import annotations
 
+import csv
+import io
 import json
 import zipfile
 
@@ -57,6 +59,26 @@ def verify_archive(path: str, selected: dict) -> None:
         scope = manifest.get("collection_scope", {})
         if not isinstance(scope, dict):
             raise ValueError("Missing collection scope")
+        if manifest.get("data_trust") != "untrusted_machine_metadata":
+            raise ValueError("Missing explicit untrusted-data marker")
+        record_counts = manifest.get("record_counts")
+        if not isinstance(record_counts, dict):
+            raise ValueError("Missing record count manifest")
+        for category, member in CATEGORIES.items():
+            if not selected.get(category):
+                continue
+            if category == "system":
+                if record_counts.get(category) != 1:
+                    raise ValueError("System profile count mismatch")
+                continue
+            with io.StringIO(archive.read(member).decode("utf-8-sig"), newline="") as fp:
+                rows = list(csv.DictReader(fp))
+            actual = (
+                sum(int(row.get("Count", 0)) for row in rows)
+                if category == "security" else len(rows)
+            )
+            if record_counts.get(category) != actual:
+                raise ValueError(f"Incorrect exported record count for {category}")
         if not bool(scope.get("filesystem_metadata", False)) and (
             selected.get("files") or selected.get("folders")
         ):
