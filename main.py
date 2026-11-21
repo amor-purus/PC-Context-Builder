@@ -1145,7 +1145,7 @@ def build_package(payload, choices, output_dir, *, cancel_event=None, progress_c
             write_checked(zf,"PC_Context_Pack/06_SCAN_REPORT/manifest.json", safe_json_bytes(manifest))
         _check_export_cancel(cancel_event)
         _notify_export(progress_callback, "verifying")
-        with open(temp, "rb") as buffered:
+        with open(temp, "r+b") as buffered:
             os.fsync(buffered.fileno())
         context_schema.verify_archive(temp, selected)
         _check_export_cancel(cancel_event)
