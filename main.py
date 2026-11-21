@@ -2572,6 +2572,65 @@ def self_test():
     print("SELF-TEST PASS")
 
 
+
+def self_test_frozen():
+    """End-to-end validation of the actual packaged GUI executable.
+
+    This test intentionally does not spawn sys.executable as a Python interpreter:
+    a frozen windowed EXE is not a general-purpose Python CLI.
+    """
+    with tempfile.TemporaryDirectory(prefix="pc-context-frozen-") as directory:
+        synthetic = {
+            "scan_time": now_iso(),
+            "system": {
+                "os": {"name": "Synthetic Windows", "architecture": "64-bit"},
+                "hardware": {"manufacturer": "Test", "model": "DYNAMIC USER DATA",
+                             "cpu": [], "gpu": [], "display_resolutions": []},
+                "software": [{"Name": "NON_SELECTED_APPLICATION", "Include": False}],
+                "browser_summary": [], "python_environments": [],
+                "drives": [{"Drive": "C:", "VolumeName": "SENSITIVE VOLUME LABEL",
+                            "FileSystem": "NTFS", "SizeBytes": 100, "FreeBytes": 50}],
+            },
+            "roots": ["C:\\"],
+            "collection_scope": {
+                "system": True, "installed_software": False,
+                "filesystem_metadata": False,
+            },
+            "files": [], "folders": [], "warnings": [],
+            "scan_warnings": [{"Drive": "system", "Reason":
+                              "PowerShell failure C:\\Users\\private"}],
+            "exclusions": [], "exclusion_summary": [],
+            "filesystem_counts": {"files": 0, "folders": 0, "skipped": 0,
+                                  "errors": 0, "exclusions": 0, "warnings": 0},
+            "filesystem_status": "not_collected",
+            "filesystem_elapsed_seconds": 0.0,
+        }
+        selected = {
+            "categories": {
+                "system": True, "software": False, "drives": True,
+                "folders": False, "files": False, "warnings": True,
+                "security": False,
+            }
+        }
+        filename, counts, size = build_package(synthetic, selected, directory)
+        assert size > 100 and counts["system"] == 1
+        context_schema.verify_archive(filename, selected["categories"])
+        with zipfile.ZipFile(filename) as archive:
+            profile = archive.read(
+                "PC_Context_Pack/01_PC_PROFILE/system_profile.json"
+            ).decode("utf-8")
+            guidance = archive.read(
+                "PC_Context_Pack/00_README_FOR_AI.md"
+            ).decode("utf-8")
+            warnings = archive.read(
+                "PC_Context_Pack/06_SCAN_REPORT/warnings.csv"
+            ).decode("utf-8-sig")
+            assert "SENSITIVE VOLUME LABEL" not in profile
+            assert "DYNAMIC USER DATA" not in guidance
+            assert "Users\\private" not in warnings
+        assert not list(Path(directory).glob(".PC_Context_Txn_*.json"))
+        assert not list(Path(directory).glob(".PC_Context_Pack_*.tmp"))
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--self-test", action="store_true")
@@ -2580,7 +2639,7 @@ def main():
     if args.self_test:
         if args.self_test_output:
             try:
-                self_test()
+                (self_test_frozen if getattr(sys, "frozen", False) else self_test)()
             except BaseException as exc:
                 Path(args.self_test_output).write_text(
                     json.dumps({"ok": False, "version": VERSION,
@@ -2595,7 +2654,7 @@ def main():
                 encoding="utf-8",
             )
         else:
-            self_test()
+            (self_test_frozen if getattr(sys, "frozen", False) else self_test)()
         return
     if not is_windows():
         print("Windows 11 only")
