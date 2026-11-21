@@ -37,3 +37,14 @@ secrets.json
 Thumbs.db
 .vscode/
 .idea/
+
+# v2 staging, benchmark, bundled executable, frozen testing
+.PC_Context_Pack_*.tmp
+.PC_Context_Txn_*.json
+perf.json
+frozen-self-test.json
+FROZEN-SELF-TEST.json
+PERFORMANCE-BASELINE.json
+dist/
+build/
+*.spec

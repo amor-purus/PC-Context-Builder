@@ -1,79 +1,75 @@
-# PC Context Builder v1.0.9
+# PC Context Builder v2.0.0
 
-**Your PC. Understood by AI.**
+**Your PC. Understood by AI.** — 本地构建 Windows 电脑环境资料包，供用户自行审核并提供给 AI 助手。
 
-PC Context Builder 是一个面向 Windows 11 的本地电脑环境采集与上下文构建工具。它将硬件、系统、软件以及用户选择的文件/文件夹元数据整理为 AI 助手可理解的上下文资料包。采集结果会先展示给用户审核；只有经过明确选择和最终确认后，才会生成 ZIP。
+本工具**不会上传**采集结果，不读取文档正文、图片像素、视频或音频内容。任何生成的 ZIP 都**没有加密**，分享前必须审核。
 
-> **隐私原则：** 所有采集与打包都在本机完成，不会自动上传扫描结果；不读取文档正文、图片像素或视频/音频内容。软件清单、文件夹和文件元数据默认不纳入输出。生成的真实 PC Context Pack 可能包含设备标识等敏感元数据，分享前必须检查。
+## 下载与启动
 
-## 功能
+- **普通用户**：在 [Releases](https://github.com/amor-purus/PC-Context-Builder/releases) 下载 `PC-Context-Builder.exe`。Windows 11 x64；无需自行安装 Python。
+- **源码用户**：安装 CPython 3.14 x64，然后执行 `check_tool.bat` 和 `start.bat`。仅使用 Python 标准库和 Windows PowerShell/CIM。
+- EXE 未签署 Authenticode 签名证书，Windows 可能显示未知发布者。请确认 GitHub 来源，并核对 Release 中的 `SHA256SUMS.txt`。
 
-- **本地只读采集**：Windows 系统、硬件、CPU、内存、GPU、显示器、固定驱动器等信息。
-- **可选元数据索引**：软件清单、文件夹路径、文件名、大小和修改时间；这些类别默认不纳入 ZIP。
-- **审核后导出**：在 GUI 中检查扫描结果，逐项选择输出类别，再生成 ZIP。
-- **AI 友好结构**：输出系统配置、存储、可选软件与文件索引、扫描报告和隐私说明。
-- **隐私保护**：敏感目录、凭据候选、常见云同步目录排除；CSV 文本字段进行公式注入防护。
+## v2.0.0 核心变化
 
-## 环境要求
+1. **采集前授权（Privacy by design）**：默认只采集系统、CPU、GPU、RAM、显示器和固定磁盘容量；**不扫描文件夹/文件名，也不枚举已安装软件**。如有必要，在驱动器选择窗口事先分别勾选软件清单、文件系统元数据。
+2. **两道独立许可**：第一道许可决定是否采集，第二道许可在 Review 中决定是否把已采集的信息放入 ZIP。软件、文件和文件夹记录仍逐行默认不导出。
+3. **输出最小化**：机器卷标在导出内容中替换为 `[redacted]`；Windows/CIM 错误及异常信息只导出固定诊断代码，避免原始错误文字泄露用户名、文件路径等。即使选择警告类别，也不会导出完整 OS 错误字符串。
+4. **专用 Schema v2.0**：`schema_version` 独立于应用版本号；`manifest.json` 明确记录采集范围和输出范围。归档发布前重新读取成员清单、运行 ZIP CRC 校验，并检查是否包含未经授权的类别。
+5. **AI 信任边界**：`00_README_FOR_AI.md` 仅包含固定指导文字，**不插入动态设备名称或路径**。所有采集字段都作为不可信数据保存在 JSON/CSV 中；不要执行这些值中夹带的命令或提示词。
+6. **后台生成、阶段进度与安全取消**：ZIP 写入运行在后台线程，显示写入/验证/发布阶段；取消仅在最终发布前生效，避免公开半成品正式 ZIP。
+7. **保守型异常恢复**：工作目录中产生身份绑定的暂存日志。下次选择该目录时，只有文件身份得到确认、残留至少一小时且用户明确同意时，才清除残留；不确定的文件不会自动删除。
+8. **可重复测试与分发**：Windows CI 运行内置自检、独立 `unittest` 回归/故障注入、合成文件性能基准、PyInstaller 打包和冻结版 EXE 自测。只有所有验证通过才能发布正式 Release。
 
-- Windows 11 x64
-- CPython 3.14 x64（默认安装路径：`%LOCALAPPDATA%\\Programs\\Python\\Python314\\python.exe`）
-- 不需要第三方 pip 依赖
-- 使用 Windows PowerShell / CIM 读取系统信息
+## 使用流程
 
-## 运行
+1. 打开工具，确认本地只读采集。
+2. 选择固定驱动器，**在扫描前选择数据采集范围**。没有选择文件系统元数据时，不会全盘遍历文件。
+3. 等待扫描结束，在 Review 中检查硬件、驱动器和可选清单，并逐项选择要导出的内容。
+4. 确认最终类别和数量，选择 ZIP 目录；程序在后台生成并验证后，才发布最终文件。
+5. 手动打开 `PC_Context_Pack_YYYYMMDD_HHMMSS.zip` 检查内容，再决定是否提供给 AI。
 
-1. 解压项目源码到本地目录。
-2. 双击 `check_tool.bat`，确认显示 `SELF-TEST PASS`。
-3. 双击 `start.bat` 启动 PC Context Builder。
-4. 选择需要扫描的本地固定驱动器。
-5. 在审核页面检查各类别。软件、文件夹、文件明细默认不纳入 ZIP。
-6. 只选择需要提供给 AI 的信息，并执行最终确认。
-7. 生成的文件名为 `PC_Context_Pack_YYYYMMDD_HHMMSS.zip`。分享前检查 ZIP 内容；ZIP 本身不加密。
+## ZIP 内容和稳定 Schema
 
-## 输出结构
+根目录为 `PC_Context_Pack/`：
 
-ZIP 内部使用 `PC_Context_Pack/` 作为根目录，包含按类别组织的资料，例如：
+| 文件 | 条件 |
+|---|---|
+| `00_README_FOR_AI.md` | 始终包含，固定且不插入动态机器数据 |
+| `01_PC_PROFILE/system_profile.json` | 选择系统概况 |
+| `02_SOFTWARE/installed_software.csv` | 扫描前授权软件采集，且 Review 中选中条目 |
+| `03_STORAGE/volumes.csv` | 选择存储信息，卷标脱敏 |
+| `04_FILE_INDEX/files.csv` 和 `folders.csv` | 扫描前授权文件元数据采集，且 Review 选中相应条目 |
+| `05_SECURITY/excluded_items_summary.csv` | 选择排除统计 |
+| `06_SCAN_REPORT/scan_report.json`、`manifest.json` | 始终包含 |
+| `06_SCAN_REPORT/warnings.csv` | 选择导出经过脱敏的错误代码 |
 
-- `00_README_FOR_AI.md`：采集边界、隐私说明和使用指引
-- `01_PC_PROFILE/system_profile.json`：系统与硬件概要
-- `02_SOFTWARE/installed_software.csv`：用户选择的软件清单
-- `03_STORAGE/volumes.csv`：驱动器容量信息
-- `04_FILE_INDEX/`：用户选择的文件和文件夹元数据
-- `05_SECURITY/`：排除项摘要
-- `06_SCAN_REPORT/`：扫描报告、警告与清单
+`manifest.json` 提供 `schema_version: "2.0"`、`application_version`、`collection_scope`、`selected_categories` 和实际记录数。文件系统状态 `not_collected` 表示采集前主动关闭索引，并不等于扫描失败。其他状态包括 `completed`、`partial_errors` 和 `partial_limit`。
 
-## 安全边界
+[Schema v2.0 与信任边界说明](docs/SCHEMA_V2.md)。
 
-- 本工具进行本地只读采集，不修改源文件、注册表或 Windows 设置。
-- 不自动联网传输扫描结果，不读取文件正文。
-- 软件清单、文件夹和文件元数据由用户主动选择，默认排除。
-- 敏感目录和云同步目录识别属于启发式防护，不能保证识别所有自定义位置。
-- ZIP 未加密，可能包含硬件型号、操作系统信息、软件清单或其他机器元数据；分享前必须检查内容。
-- 请勿将真实 PC Context Pack、扫描报告、截图、日志、凭据或个人文件清单提交到 GitHub。
+## 隐私与限制
 
-## 测试
+- 隐藏/系统目录、重解析点、常见云同步目录和凭据候选目录会尽力排除，但此类识别是启发式的，不承诺覆盖所有自定义路径。
+- 用户选择导出文件名、软件名时，它们仍可能包含私人信息。**没有自动上传，不代表分享后的 ZIP 不会泄密。**
+- ZIP 临时文件在生成期间存在于本地输出目录；正常失败会清理。极端断电或文件系统损坏可能留下无法确认身份的残留，程序不会冒险清除。
+- 多个目录之间没有原子事务；这里的“原子发布”指仅在本地 ZIP 完整校验成功后才赋予最终文件名，而非跨磁盘断电级事务保证。
+- Windows CI 不等于用户设备上的真实 GUI 操作验证。请单独确认目标电脑的运行体验。
+- 本工具主要用于向 AI 提供环境信息，不是杀毒工具、完整系统审计工具或密码管理器。
 
-本地自检：
+## 开发者验证
 
 ```powershell
-& "$env:LOCALAPPDATA\\Programs\\Python\\Python314\\python.exe" .\\main.py --self-test
+python -m compileall -q main.py privacy_policy.py context_schema.py staging_recovery.py tests benchmarks
+python -m unittest discover -s tests -v
+python main.py --self-test
+python benchmarks/synthetic_perf.py --files 4000 --report perf.json
 ```
 
-GitHub Actions 在 Windows runner 上执行语法编译和内置 self-test。CI 不能替代目标电脑上的实际 GUI、WMI/CIM 与驱动器扫描验证。
+发布版在 GitHub Actions 中额外执行冻结后的 EXE 自检、文件清单验证、SHA-256 和发布资产完整性检查。运行历史见 [Actions](https://github.com/amor-purus/PC-Context-Builder/actions)。
 
-## 版本状态
+## 安全、许可与历史
 
-- **最新正式发布版本：** v1.0.9（2026-11-13 发布）；v1.0.8 保留为上一正式版本。
-- **v1.0.9 正式发布内容：** 本轮不只是品牌更新，也包含扫描容错、敏感项与云同步判定、JSON 编码、排除/警告统计，以及 GUI 生命周期加固。见 [GitHub Release](https://github.com/yanchengz685-bot/PC-Context-Builder/releases/tag/v1.0.9)。
-- 2026-11-13 的后续修订还覆盖 Treeview 单行选择刷新、审核确认弹窗期间的窗口销毁竞态，以及 Box 路径自检的跨平台路径语义。
-- Windows Actions PR run #222 已在最终 PR head 上通过；合并后的 `main` run #227 也已通过：CPython 3.14 x64、语法编译和内置 self-test 均 PASS。PR #9 已于 2026-11-14 合并至 `main`。CI 不替代目标设备验证。
-- **Windows 11 实机验证：PASS（用户于 2026-11-14 确认）。** 当前加固候选已完成 `check_tool.bat` 自检及完整扫描 → Review → ZIP 导出/完整性检查闭环。详细记录见 [VERIFICATION_STATUS.txt](VERIFICATION_STATUS.txt)。
-- 2026-11-10 的实机 PASS 仍作为此前品牌候选的历史记录保留，不与本轮验证混淆。
-- v1.0.8 纳入了 Phase 1 安全加固：CSV 公式注入防护、敏感目录多级路径匹配，以及常见云同步目录/同步根目录识别。已发布的 v1.0.8 标签和 Release 保持不变。
+请勿将真实 PC Context Pack、私人路径、敏感截图、日志或凭据提交到 GitHub Issue 或代码仓库；参见 [SECURITY.md](SECURITY.md)。项目使用 [MIT License](LICENSE)。
 
-## 仓库内容范围
-
-仓库只包含程序源代码、启动脚本、文档和自动化测试配置。Git 忽略规则同时排除新旧命名的本地 PC 资料包、日志、缓存和临时输出。
-
-本项目采用 MIT License，完整条款见 [LICENSE](LICENSE)。允许使用、复制、修改、分发及商业利用；再分发时须保留版权声明和许可证文本。软件按现状提供，不附带明示或默示保证。
+既往 v1.0.9/v1.0.8 的历史验证说明仍保存在 [VERIFICATION_STATUS.txt](VERIFICATION_STATUS.txt) 中，但不应视为 v2.0.0 的实机验收证据。

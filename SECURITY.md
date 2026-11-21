@@ -1,19 +1,49 @@
-# Security and data handling
+# Security and personal data boundaries
 
-## Application behavior
+PC Context Builder runs locally on Windows. It does not upload collected information
+or read user document contents. The plaintext ZIP is **not encrypted**, and
+its machine metadata can still be sensitive.
 
-PC Context Builder is designed for local, read-only Windows PC context collection. It does not upload scan data, read user document contents, or modify source files/registry/settings. It emits metadata and system inventory only after user review and explicit confirmation.
+## Before data is collected
 
-## Sensitive output warning
+- System hardware and storage statistics are enabled by default.
+- Installed software and filesystem metadata are **not collected** unless the
+  user opts in before scanning. Review/export approval is a separate stage.
+- Credentials, cloud-sync folders, reparse points, hidden/system files and
+  sensitive-name candidates are filtered heuristically, not perfectly.
 
-Generated PC_Context_Pack_*.zip files may contain hardware model identifiers, operating-system details, software inventory (if selected), and other machine metadata. These exports are intentionally excluded from version control. Legacy AI_PC_Knowledge_Pack_*.zip exports are also ignored for backward compatibility. Review output contents before sharing with any service.
+## Before a ZIP is published
 
-## Metadata and CSV handling
+- Default storage exports redact all volume labels as `[redacted]`.
+- Raw PowerShell error strings are not exported: diagnostic descriptions are
+  mapped to bounded codes, and unexpected text is replaced with
+  `diagnostic_detail_redacted`.
+- AI README text is fixed, not constructed from attacker-controllable
+  device/software/file strings. Treat all JSON/CSV fields as **untrusted data**.
+- A strict member allowlist, CRC read-back and scope/selection cross-check run
+  before an archive receives its final public filename.
+- Source files are not modified. ZIP creation uses local temporary files
+  that may themselves contain sensitive metadata while a task is active.
+- A prior interrupted stage can be removed only on explicit consent and after
+  checking journal and temporary-file identity. Uncertain residuals are kept.
 
-CSV text fields originating from file names, paths, registry metadata, and scan messages are neutralized when they begin with spreadsheet formula-triggering characters (including after leading whitespace/control characters). This reduces CSV formula-injection risk in common spreadsheet applications; it is not a universal guarantee. Review exported data before opening or sharing it.
+## Known limits
 
-Sensitive-directory filtering matches complete path components, including configured multi-component paths such as `.config/gcloud`. Common cloud-sync directory names and Windows sync-root environment variables are also excluded. Detection is heuristic: custom sync roots not exposed through a recognized environment variable or name may not be detected.
+No system can guarantee against malicious software with the current user's
+permissions, unknown cloud sync configurations, an adversary able to modify
+source data, all forms of filename-based prompt injection, malicious hardware,
+storage corruption, or complete power-loss atomicity. The program does not
+authenticate provenance of metadata values.
 
-## Reporting vulnerabilities
+Without full end-user GUI acceptance testing, GitHub-hosted CI proves only
+the automated tests actually executed. The released EXE is unsigned;
+verify its origin and SHA-256 before running.
 
-Do not attach real PC exports, private keys, credentials, tokens, or unredacted personal paths to public issues. Report the affected version, a sanitized traceback, and a minimal reproduction.
+## Vulnerability reports
+
+Never attach real PC exports, private keys, API tokens, full stack traces
+with unredacted paths, or screenshots containing personal information to
+public issues. Report the affected version, a synthetic minimal reproduction
+and an appropriately sanitized error category.
+
+For the stable data schema and AI trust boundary see [SCHEMA_V2.md](docs/SCHEMA_V2.md).

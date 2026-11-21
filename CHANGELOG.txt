@@ -1,3 +1,14 @@
+PC Context Builder v2.0.0 — Integrated privacy, data architecture and Windows release
+
+- Scanning defaults to system/hardware/storage only; software inventory and filesystem walk now require distinct pre-collection choices. Review/export selection remains a second approval gate.
+- Exported volume names are redacted and OS/CIM diagnostic strings are transformed into stable, bounded codes. Unexpected diagnostic prose is omitted rather than guessed to be safe.
+- AI README is fixed text. Dynamic machine metadata is held in explicitly untrusted JSON/CSV, not interpolated into AI-oriented instructions.
+- Introduced stable Schema 2.0, explicit scope fields, a strict ZIP entry allowlist and semantic round-trip validation before final publication.
+- ZIP creation moves off the Tk main event loop. Stage progress and cooperative cancel work before final publication. Filesystem-identity-based temporary-file recovery requires explicit approval.
+- Added isolated privacy and packaging modules, synthetic robustness tests, performance baseline, Windows PyInstaller build, frozen EXE self-test, checksum/provenance metadata and CI-gated draft-to-public release.
+- No real PC context packs or user machine exports are included in source control.
+- Windows CI and real-device acceptance results must be evaluated separately.
+
 PC Context Builder v1.0.9 — Released 2026-11-13
 - Extend the previous branding candidate with scan robustness, sensitive-name/path boundary corrections, cloud-sync root detection, storage volume metadata, JSON UTF-8 without BOM, and complete exclusion/warning event counts beyond capped detail samples.
 - Harden Tk GUI lifecycle, including scan polling/shutdown, export-in-progress handling, and drive-selection placement. Preserve the privacy boundary: no file contents are read and no machine-unique volume serial is exported.

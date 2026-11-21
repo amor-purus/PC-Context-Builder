@@ -1,25 +1,152 @@
-name: Windows self-test
+name: Verified Windows release
 
 on:
   push:
+    branches:
+      - main
+      - "candidate/**"
   pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  self-test:
-    runs-on: windows-latest
+  verify:
+    name: Test, stress and build Windows x64
+    runs-on: windows-2025
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
+      PYTHONHASHSEED: "0"
     steps:
-      - name: Check out source
-        uses: actions/checkout@v4
+      - name: Check out reviewed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Set up CPython 3.14 x64
-        uses: actions/setup-python@v5
+      - name: Set up CPython 3.14
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
-          python-version: '3.14'
-          architecture: 'x64'
+          python-version: "3.14.10"
+          architecture: "x64"
 
-      - name: Compile source
-        run: python -m py_compile main.py
+      - name: Compile all modules and regressions
+        run: python -m compileall -q main.py privacy_policy.py context_schema.py staging_recovery.py tests benchmarks
 
-      - name: Run synthetic self-test
+      - name: Run regression and robustness tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Run legacy built-in regression suite
         run: python main.py --self-test
+
+      - name: Benchmark synthetic data only
+        run: python benchmarks/synthetic_perf.py --files 4000 --report perf.json
+
+      - name: Install pinned release packager
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary=:all: "pyinstaller==6.22.3"
+          python -m pip check
+          python -m pip freeze --all | Out-File -FilePath DEPENDENCIES.txt -Encoding utf8
+
+      - name: Build standalone GUI EXE
+        shell: pwsh
+        run: |
+          python -m PyInstaller --clean --noconfirm --onefile --windowed --name PC-Context-Builder --add-data "main.py;." main.py
+          if ($LASTEXITCODE -ne 0) { throw "Windows EXE build failed" }
+
+      - name: Run frozen EXE built-in regression suite
+        shell: pwsh
+        run: |
+          $result = (Resolve-Path .\frozen-self-test.json -ErrorAction SilentlyContinue)
+          if ($result) { Remove-Item .\frozen-self-test.json -Force }
+          $exe = (Resolve-Path .\dist\PC-Context-Builder.exe).Path
+          $report = Join-Path $pwd "frozen-self-test.json"
+          $process = Start-Process -FilePath $exe -ArgumentList @("--self-test", "--self-test-output", "$report") -PassThru -Wait
+          if ($process.ExitCode -ne 0) { throw "Frozen self-test exited with $($process.ExitCode)" }
+          if (-not (Test-Path $report)) { throw "Frozen test report missing" }
+          $result = Get-Content $report -Raw | ConvertFrom-Json
+          if (-not $result.ok -or -not $result.frozen -or $result.version -ne "2.0.0" -or $result.schema -ne "2.0") {
+            throw "Frozen self-test report failed validation"
+          }
+
+      - name: Prepare release provenance and SHA-256
+        shell: pwsh
+        run: |
+          $exe = ".\dist\PC-Context-Builder.exe"
+          if (-not (Test-Path $exe)) { throw "EXE missing" }
+          $hash = (Get-FileHash -Algorithm SHA256 $exe).Hash.ToLowerInvariant()
+          "$hash  PC-Context-Builder.exe" | Out-File -FilePath .\dist\SHA256SUMS.txt -Encoding ascii
+          $sha = (git rev-parse HEAD).Trim()
+          $tag = "v2.0.0"
+          @"
+          Application: PC Context Builder
+          Version: $tag
+          Commit: $sha
+          Runner: windows-2025
+          Python: $(python --version)
+          PyInstaller: 6.22.3
+          Schema: 2.0
+          Checksum: SHA-256
+          Code signing: unsigned
+          "@ | Out-File -FilePath .\dist\BUILD-INFO.txt -Encoding utf8
+          Copy-Item DEPENDENCIES.txt .\dist\DEPENDENCIES.txt
+          Copy-Item perf.json .\dist\PERFORMANCE-BASELINE.json
+          Copy-Item frozen-self-test.json .\dist\FROZEN-SELF-TEST.json
+          $verify = (Get-FileHash -Algorithm SHA256 $exe).Hash.ToLowerInvariant()
+          if ($verify -ne $hash) { throw "Release checksum changed after verification" }
+
+      - name: Upload release candidate as a whole
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: pc-context-builder-v2-windows-x64
+          path: |
+            dist/PC-Context-Builder.exe
+            dist/SHA256SUMS.txt
+            dist/BUILD-INFO.txt
+            dist/DEPENDENCIES.txt
+            dist/PERFORMANCE-BASELINE.json
+            dist/FROZEN-SELF-TEST.json
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish v2.0.0 only after all checks pass
+    needs: verify
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'release: v2.0.0')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download independently verified release bundle
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: pc-context-builder-v2-windows-x64
+          path: release
+
+      - name: Verify SHA-256 again before publishing
+        run: |
+          cd release
+          sha256sum --check SHA256SUMS.txt
+
+      - name: Publish immutable release asset set
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          test ! -z "$GITHUB_SHA"
+          gh release create v2.0.0 release/PC-Context-Builder.exe release/SHA256SUMS.txt release/BUILD-INFO.txt release/DEPENDENCIES.txt release/PERFORMANCE-BASELINE.json release/FROZEN-SELF-TEST.json \
+            --draft \
+            --target "$GITHUB_SHA" \
+            --title "PC Context Builder v2.0.0" \
+            --notes "Privacy-by-default scanning, sanitized diagnostics, verified schema 2.0 context packs, safe export cancellation, conservative staging recovery, new regression/robustness tests, and a portable Windows x64 EXE. ZIP exports are unencrypted; review before sharing. The EXE is unsigned."
+          uploaded_count=$(gh release view v2.0.0 --json assets --jq '.assets | length')
+          test "$uploaded_count" -eq 6 || { echo "Release files incomplete"; exit 1; }
+          gh release edit v2.0.0 --draft=false
